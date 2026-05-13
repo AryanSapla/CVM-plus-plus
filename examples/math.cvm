@@ -1,0 +1,6 @@
+let a = 10 + 2 * 3;
+let b = (a - 4) / 2;
+
+print a;
+print b;
+print a == 16;
