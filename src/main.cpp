@@ -6,6 +6,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "token.h"
+#include "vm.h"
 
 int main() {
     std::string source = "let x = 10 + 20 * 2; print x;";
@@ -41,6 +42,10 @@ int main() {
         }
         std::cout << '\n';
     }
+
+    std::cout << "\nVM Output:\n";
+    VM vm;
+    vm.execute(bytecode);
 
     return 0;
 }
