@@ -16,6 +16,43 @@ std::vector<Instruction> Compiler::compile(const std::vector<std::unique_ptr<Stm
 }
 
 void Compiler::compileStatement(const Stmt* stmt) {
+    if (const auto* blockStmt = dynamic_cast<const BlockStmt*>(stmt)) {
+        for (const auto& statement : blockStmt->statements) {
+            if (!statement) {
+                throw std::runtime_error("Invalid statement inside block.");
+            }
+            compileStatement(statement.get());
+        }
+        return;
+    }
+
+    if (const auto* ifStmt = dynamic_cast<const IfStmt*>(stmt)) {
+        compileExpression(ifStmt->condition.get());
+        std::size_t jumpIfFalseIndex = emit(OpCode::JumpIfFalse);
+
+        compileStatement(ifStmt->thenBranch.get());
+
+        if (ifStmt->elseBranch) {
+            std::size_t jumpToEndIndex = emit(OpCode::Jump);
+            patchOperand(jumpIfFalseIndex, instructions.size());
+            compileStatement(ifStmt->elseBranch.get());
+            patchOperand(jumpToEndIndex, instructions.size());
+        } else {
+            patchOperand(jumpIfFalseIndex, instructions.size());
+        }
+        return;
+    }
+
+    if (const auto* whileStmt = dynamic_cast<const WhileStmt*>(stmt)) {
+        std::size_t loopStart = instructions.size();
+        compileExpression(whileStmt->condition.get());
+        std::size_t jumpIfFalseIndex = emit(OpCode::JumpIfFalse);
+        compileStatement(whileStmt->body.get());
+        emit(OpCode::Jump, std::to_string(loopStart));
+        patchOperand(jumpIfFalseIndex, instructions.size());
+        return;
+    }
+
     if (const auto* letStmt = dynamic_cast<const LetStmt*>(stmt)) {
         compileExpression(letStmt->value.get());
         instructions.emplace_back(OpCode::StoreVar, letStmt->name);
@@ -83,4 +120,13 @@ void Compiler::compileExpression(const Expr* expr) {
     }
 
     throw std::runtime_error("Unsupported expression type.");
+}
+
+std::size_t Compiler::emit(OpCode opcode, const std::string& operand) {
+    instructions.emplace_back(opcode, operand);
+    return instructions.size() - 1;
+}
+
+void Compiler::patchOperand(std::size_t index, std::size_t target) {
+    instructions[index].operand = std::to_string(target);
 }

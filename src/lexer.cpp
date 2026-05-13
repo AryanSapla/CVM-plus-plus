@@ -61,6 +61,12 @@ std::vector<Token> Lexer::tokenize() {
             case ')':
                 tokens.push_back(makeToken(TokenType::RightParen, ")"));
                 break;
+            case '{':
+                tokens.push_back(makeToken(TokenType::LeftBrace, "{"));
+                break;
+            case '}':
+                tokens.push_back(makeToken(TokenType::RightBrace, "}"));
+                break;
             default:
                 tokens.push_back(makeToken(TokenType::Invalid, std::string(1, c)));
                 break;
@@ -128,6 +134,18 @@ Token Lexer::identifier() {
 
     if (text == "print") {
         return makeToken(TokenType::Print, text);
+    }
+
+    if (text == "if") {
+        return makeToken(TokenType::If, text);
+    }
+
+    if (text == "else") {
+        return makeToken(TokenType::Else, text);
+    }
+
+    if (text == "while") {
+        return makeToken(TokenType::While, text);
     }
 
     if (text == "true") {

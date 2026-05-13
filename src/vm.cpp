@@ -4,6 +4,9 @@
 #include <stdexcept>
 
 void VM::execute(const std::vector<Instruction>& instructions) {
+    stack.clear();
+    variables.clear();
+
     std::size_t ip = 0;
 
     while (ip < instructions.size()) {
@@ -73,6 +76,19 @@ void VM::execute(const std::vector<Instruction>& instructions) {
                 int right = pop();
                 int left = pop();
                 push(left < right ? 1 : 0);
+                break;
+            }
+
+            case OpCode::Jump:
+                ip = static_cast<std::size_t>(std::stoul(instruction.operand));
+                continue;
+
+            case OpCode::JumpIfFalse: {
+                int condition = pop();
+                if (condition == 0) {
+                    ip = static_cast<std::size_t>(std::stoul(instruction.operand));
+                    continue;
+                }
                 break;
             }
 

@@ -18,6 +18,18 @@ std::vector<std::unique_ptr<Stmt>> Parser::parse() {
 }
 
 std::unique_ptr<Stmt> Parser::statement() {
+    if (match(TokenType::If)) {
+        return ifStatement();
+    }
+
+    if (match(TokenType::While)) {
+        return whileStatement();
+    }
+
+    if (match(TokenType::LeftBrace)) {
+        return blockStatement();
+    }
+
     if (match(TokenType::Let)) {
         return letStatement();
     }
@@ -33,6 +45,70 @@ std::unique_ptr<Stmt> Parser::statement() {
     return expressionStatement();
 }
 
+std::unique_ptr<Stmt> Parser::blockStatement() {
+    std::vector<std::unique_ptr<Stmt>> statements;
+
+    while (!check(TokenType::RightBrace) && !isAtEnd()) {
+        std::unique_ptr<Stmt> stmt = statement();
+        if (!stmt) {
+            return nullptr;
+        }
+        statements.push_back(std::move(stmt));
+    }
+
+    if (!match(TokenType::RightBrace)) {
+        return nullptr;
+    }
+
+    return std::make_unique<BlockStmt>(std::move(statements));
+}
+
+std::unique_ptr<Stmt> Parser::ifStatement() {
+    if (!match(TokenType::LeftParen)) {
+        return nullptr;
+    }
+
+    std::unique_ptr<Expr> condition = expression();
+
+    if (!condition || !match(TokenType::RightParen)) {
+        return nullptr;
+    }
+
+    std::unique_ptr<Stmt> thenBranch = statement();
+    if (!thenBranch) {
+        return nullptr;
+    }
+
+    std::unique_ptr<Stmt> elseBranch;
+    if (match(TokenType::Else)) {
+        elseBranch = statement();
+        if (!elseBranch) {
+            return nullptr;
+        }
+    }
+
+    return std::make_unique<IfStmt>(std::move(condition), std::move(thenBranch), std::move(elseBranch));
+}
+
+std::unique_ptr<Stmt> Parser::whileStatement() {
+    if (!match(TokenType::LeftParen)) {
+        return nullptr;
+    }
+
+    std::unique_ptr<Expr> condition = expression();
+
+    if (!condition || !match(TokenType::RightParen)) {
+        return nullptr;
+    }
+
+    std::unique_ptr<Stmt> body = statement();
+    if (!body) {
+        return nullptr;
+    }
+
+    return std::make_unique<WhileStmt>(std::move(condition), std::move(body));
+}
+
 std::unique_ptr<Stmt> Parser::letStatement() {
     Token nameToken = advance();
 
@@ -46,7 +122,7 @@ std::unique_ptr<Stmt> Parser::letStatement() {
 
     std::unique_ptr<Expr> value = expression();
 
-    if (!match(TokenType::Semicolon)) {
+    if (!value || !match(TokenType::Semicolon)) {
         return nullptr;
     }
 
@@ -56,7 +132,7 @@ std::unique_ptr<Stmt> Parser::letStatement() {
 std::unique_ptr<Stmt> Parser::printStatement() {
     std::unique_ptr<Expr> value = expression();
 
-    if (!match(TokenType::Semicolon)) {
+    if (!value || !match(TokenType::Semicolon)) {
         return nullptr;
     }
 
@@ -72,7 +148,7 @@ std::unique_ptr<Stmt> Parser::assignmentStatement() {
 
     std::unique_ptr<Expr> value = expression();
 
-    if (!match(TokenType::Semicolon)) {
+    if (!value || !match(TokenType::Semicolon)) {
         return nullptr;
     }
 
@@ -82,7 +158,7 @@ std::unique_ptr<Stmt> Parser::assignmentStatement() {
 std::unique_ptr<Stmt> Parser::expressionStatement() {
     std::unique_ptr<Expr> expr = expression();
 
-    if (!match(TokenType::Semicolon)) {
+    if (!expr || !match(TokenType::Semicolon)) {
         return nullptr;
     }
 
