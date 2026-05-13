@@ -8,11 +8,15 @@ enum class TokenType {
     Identifier,
     Let,
     Print,
+    True,
+    False,
     Plus,
     Minus,
     Star,
     Slash,
     Equal,
+    EqualEqual,
+    Less,
     Semicolon,
     LeftParen,
     RightParen,
@@ -31,11 +35,15 @@ inline const char* tokenTypeToString(TokenType type) {
         case TokenType::Identifier: return "Identifier";
         case TokenType::Let: return "Let";
         case TokenType::Print: return "Print";
+        case TokenType::True: return "True";
+        case TokenType::False: return "False";
         case TokenType::Plus: return "Plus";
         case TokenType::Minus: return "Minus";
         case TokenType::Star: return "Star";
         case TokenType::Slash: return "Slash";
         case TokenType::Equal: return "Equal";
+        case TokenType::EqualEqual: return "EqualEqual";
+        case TokenType::Less: return "Less";
         case TokenType::Semicolon: return "Semicolon";
         case TokenType::LeftParen: return "LeftParen";
         case TokenType::RightParen: return "RightParen";

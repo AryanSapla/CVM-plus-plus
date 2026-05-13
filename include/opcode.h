@@ -12,6 +12,8 @@ enum class OpCode {
     Subtract,
     Multiply,
     Divide,
+    Equal,
+    Less,
     Print,
     Pop,
     Halt
@@ -34,6 +36,8 @@ inline const char* opcodeToString(OpCode opcode) {
         case OpCode::Subtract: return "Subtract";
         case OpCode::Multiply: return "Multiply";
         case OpCode::Divide: return "Divide";
+        case OpCode::Equal: return "Equal";
+        case OpCode::Less: return "Less";
         case OpCode::Print: return "Print";
         case OpCode::Pop: return "Pop";
         case OpCode::Halt: return "Halt";

@@ -22,6 +22,12 @@ void Compiler::compileStatement(const Stmt* stmt) {
         return;
     }
 
+    if (const auto* assignStmt = dynamic_cast<const AssignStmt*>(stmt)) {
+        compileExpression(assignStmt->value.get());
+        instructions.emplace_back(OpCode::StoreVar, assignStmt->name);
+        return;
+    }
+
     if (const auto* printStmt = dynamic_cast<const PrintStmt*>(stmt)) {
         compileExpression(printStmt->value.get());
         instructions.emplace_back(OpCode::Print);
@@ -43,6 +49,11 @@ void Compiler::compileExpression(const Expr* expr) {
         return;
     }
 
+    if (const auto* boolExpr = dynamic_cast<const BoolExpr*>(expr)) {
+        instructions.emplace_back(OpCode::PushInt, boolExpr->value ? "1" : "0");
+        return;
+    }
+
     if (const auto* identifierExpr = dynamic_cast<const IdentifierExpr*>(expr)) {
         instructions.emplace_back(OpCode::LoadVar, identifierExpr->name);
         return;
@@ -60,6 +71,10 @@ void Compiler::compileExpression(const Expr* expr) {
             instructions.emplace_back(OpCode::Multiply);
         } else if (binaryExpr->op == "/") {
             instructions.emplace_back(OpCode::Divide);
+        } else if (binaryExpr->op == "==") {
+            instructions.emplace_back(OpCode::Equal);
+        } else if (binaryExpr->op == "<") {
+            instructions.emplace_back(OpCode::Less);
         } else {
             throw std::runtime_error("Unknown binary operator: " + binaryExpr->op);
         }
