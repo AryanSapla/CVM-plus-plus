@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
             std::cout << "\nAST:\n";
             for (const auto& statement : statements) {
                 if (!statement) {
-                    std::cout << "Parse error\n";
+                    std::cout << "Parse error: " << parser.getErrorMessage() << '\n';
                     return 1;
                 }
                 std::cout << statement->toString() << '\n';
@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
         } else {
             for (const auto& statement : statements) {
                 if (!statement) {
-                    std::cout << "Parse error\n";
+                    std::cout << "Parse error: " << parser.getErrorMessage() << '\n';
                     return 1;
                 }
             }

@@ -3,6 +3,7 @@
 Parser::Parser(const std::vector<Token>& tokens) : tokens(tokens), current(0) {}
 
 std::vector<std::unique_ptr<Stmt>> Parser::parse() {
+    errorMessage.clear();
     std::vector<std::unique_ptr<Stmt>> statements;
 
     while (!isAtEnd()) {
@@ -15,6 +16,10 @@ std::vector<std::unique_ptr<Stmt>> Parser::parse() {
     }
 
     return statements;
+}
+
+const std::string& Parser::getErrorMessage() const {
+    return errorMessage;
 }
 
 std::unique_ptr<Stmt> Parser::statement() {
@@ -56,7 +61,7 @@ std::unique_ptr<Stmt> Parser::blockStatement() {
         statements.push_back(std::move(stmt));
     }
 
-    if (!match(TokenType::RightBrace)) {
+    if (!consume(TokenType::RightBrace, "Expected '}' after block.")) {
         return nullptr;
     }
 
@@ -64,13 +69,13 @@ std::unique_ptr<Stmt> Parser::blockStatement() {
 }
 
 std::unique_ptr<Stmt> Parser::ifStatement() {
-    if (!match(TokenType::LeftParen)) {
+    if (!consume(TokenType::LeftParen, "Expected '(' after 'if'.")) {
         return nullptr;
     }
 
     std::unique_ptr<Expr> condition = expression();
 
-    if (!condition || !match(TokenType::RightParen)) {
+    if (!condition || !consume(TokenType::RightParen, "Expected ')' after if condition.")) {
         return nullptr;
     }
 
@@ -91,13 +96,13 @@ std::unique_ptr<Stmt> Parser::ifStatement() {
 }
 
 std::unique_ptr<Stmt> Parser::whileStatement() {
-    if (!match(TokenType::LeftParen)) {
+    if (!consume(TokenType::LeftParen, "Expected '(' after 'while'.")) {
         return nullptr;
     }
 
     std::unique_ptr<Expr> condition = expression();
 
-    if (!condition || !match(TokenType::RightParen)) {
+    if (!condition || !consume(TokenType::RightParen, "Expected ')' after while condition.")) {
         return nullptr;
     }
 
@@ -110,19 +115,18 @@ std::unique_ptr<Stmt> Parser::whileStatement() {
 }
 
 std::unique_ptr<Stmt> Parser::letStatement() {
-    Token nameToken = advance();
-
-    if (nameToken.type != TokenType::Identifier) {
+    if (!consume(TokenType::Identifier, "Expected variable name after 'let'.")) {
         return nullptr;
     }
+    Token nameToken = previous();
 
-    if (!match(TokenType::Equal)) {
+    if (!consume(TokenType::Equal, "Expected '=' after variable name.")) {
         return nullptr;
     }
 
     std::unique_ptr<Expr> value = expression();
 
-    if (!value || !match(TokenType::Semicolon)) {
+    if (!value || !consume(TokenType::Semicolon, "Expected ';' after variable declaration.")) {
         return nullptr;
     }
 
@@ -132,7 +136,7 @@ std::unique_ptr<Stmt> Parser::letStatement() {
 std::unique_ptr<Stmt> Parser::printStatement() {
     std::unique_ptr<Expr> value = expression();
 
-    if (!value || !match(TokenType::Semicolon)) {
+    if (!value || !consume(TokenType::Semicolon, "Expected ';' after print value.")) {
         return nullptr;
     }
 
@@ -140,15 +144,18 @@ std::unique_ptr<Stmt> Parser::printStatement() {
 }
 
 std::unique_ptr<Stmt> Parser::assignmentStatement() {
-    Token nameToken = advance();
+    if (!consume(TokenType::Identifier, "Expected variable name in assignment.")) {
+        return nullptr;
+    }
+    Token nameToken = previous();
 
-    if (!match(TokenType::Equal)) {
+    if (!consume(TokenType::Equal, "Expected '=' in assignment.")) {
         return nullptr;
     }
 
     std::unique_ptr<Expr> value = expression();
 
-    if (!value || !match(TokenType::Semicolon)) {
+    if (!value || !consume(TokenType::Semicolon, "Expected ';' after assignment.")) {
         return nullptr;
     }
 
@@ -158,7 +165,7 @@ std::unique_ptr<Stmt> Parser::assignmentStatement() {
 std::unique_ptr<Stmt> Parser::expressionStatement() {
     std::unique_ptr<Expr> expr = expression();
 
-    if (!expr || !match(TokenType::Semicolon)) {
+    if (!expr || !consume(TokenType::Semicolon, "Expected ';' after expression.")) {
         return nullptr;
     }
 
@@ -266,13 +273,14 @@ std::unique_ptr<Expr> Parser::primary() {
     if (match(TokenType::LeftParen)) {
         std::unique_ptr<Expr> expr = expression();
 
-        if (!match(TokenType::RightParen)) {
+        if (!consume(TokenType::RightParen, "Expected ')' after expression.")) {
             return nullptr;
         }
 
         return expr;
     }
 
+    setError("Unexpected token " + describeCurrentToken() + " in expression.");
     return nullptr;
 }
 
@@ -282,6 +290,15 @@ bool Parser::match(TokenType type) {
         return true;
     }
 
+    return false;
+}
+
+bool Parser::consume(TokenType type, const std::string& message) {
+    if (match(type)) {
+        return true;
+    }
+
+    setError(message + " Found " + describeCurrentToken() + ".");
     return false;
 }
 
@@ -319,4 +336,26 @@ const Token& Parser::previous() const {
 
 bool Parser::isAtEnd() const {
     return peek().type == TokenType::EndOfFile;
+}
+
+void Parser::setError(const std::string& message) {
+    if (errorMessage.empty()) {
+        errorMessage = message;
+    }
+}
+
+std::string Parser::describeToken(const Token& token) const {
+    if (token.type == TokenType::EndOfFile) {
+        return "end of file";
+    }
+
+    if (token.lexeme.empty()) {
+        return std::string("token ") + tokenTypeToString(token.type);
+    }
+
+    return "'" + token.lexeme + "'";
+}
+
+std::string Parser::describeCurrentToken() const {
+    return describeToken(peek());
 }
