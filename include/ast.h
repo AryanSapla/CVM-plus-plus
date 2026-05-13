@@ -94,6 +94,47 @@ struct AssignStmt : Stmt {
     }
 };
 
+struct BlockStmt : Stmt {
+    std::vector<std::unique_ptr<Stmt>> statements;
+
+    explicit BlockStmt(std::vector<std::unique_ptr<Stmt>> statements)
+        : statements(std::move(statements)) {}
+
+    std::string toString() const override {
+        return "{ block }";
+    }
+};
+
+struct IfStmt : Stmt {
+    std::unique_ptr<Expr> condition;
+    std::unique_ptr<Stmt> thenBranch;
+    std::unique_ptr<Stmt> elseBranch;
+
+    IfStmt(std::unique_ptr<Expr> condition, std::unique_ptr<Stmt> thenBranch, std::unique_ptr<Stmt> elseBranch)
+        : condition(std::move(condition)),
+          thenBranch(std::move(thenBranch)),
+          elseBranch(std::move(elseBranch)) {}
+
+    std::string toString() const override {
+        if (elseBranch) {
+            return "if (" + condition->toString() + ") ... else ...";
+        }
+        return "if (" + condition->toString() + ") ...";
+    }
+};
+
+struct WhileStmt : Stmt {
+    std::unique_ptr<Expr> condition;
+    std::unique_ptr<Stmt> body;
+
+    WhileStmt(std::unique_ptr<Expr> condition, std::unique_ptr<Stmt> body)
+        : condition(std::move(condition)), body(std::move(body)) {}
+
+    std::string toString() const override {
+        return "while (" + condition->toString() + ") ...";
+    }
+};
+
 struct ExprStmt : Stmt {
     std::unique_ptr<Expr> expression;
 

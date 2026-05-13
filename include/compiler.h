@@ -1,7 +1,9 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
+#include <cstddef>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "ast.h"
@@ -14,6 +16,8 @@ public:
 private:
     void compileStatement(const Stmt* stmt);
     void compileExpression(const Expr* expr);
+    std::size_t emit(OpCode opcode, const std::string& operand = "");
+    void patchOperand(std::size_t index, std::size_t target);
 
     std::vector<Instruction> instructions;
 };
