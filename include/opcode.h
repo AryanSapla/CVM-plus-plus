@@ -6,6 +6,7 @@
 
 enum class OpCode {
     PushInt,
+    Input,
     LoadVar,
     StoreVar,
     Add,
@@ -32,6 +33,7 @@ struct Instruction {
 inline const char* opcodeToString(OpCode opcode) {
     switch (opcode) {
         case OpCode::PushInt: return "PushInt";
+        case OpCode::Input: return "Input";
         case OpCode::LoadVar: return "LoadVar";
         case OpCode::StoreVar: return "StoreVar";
         case OpCode::Add: return "Add";

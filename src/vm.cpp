@@ -1,6 +1,7 @@
 #include "vm.h"
 
 #include <iostream>
+#include <string>
 #include <stdexcept>
 
 void VM::execute(const std::vector<Instruction>& instructions) {
@@ -16,6 +17,16 @@ void VM::execute(const std::vector<Instruction>& instructions) {
             case OpCode::PushInt:
                 push(std::stoi(instruction.operand));
                 break;
+
+            case OpCode::Input: {
+                std::string line;
+                std::cout << "input> ";
+                if (!std::getline(std::cin, line)) {
+                    throw std::runtime_error("Failed to read input.");
+                }
+                push(std::stoi(line));
+                break;
+            }
 
             case OpCode::LoadVar: {
                 auto it = variables.find(instruction.operand);

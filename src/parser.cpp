@@ -242,6 +242,10 @@ std::unique_ptr<Expr> Parser::primary() {
         return std::make_unique<BoolExpr>(false);
     }
 
+    if (match(TokenType::Input)) {
+        return std::make_unique<InputExpr>();
+    }
+
     if (match(TokenType::Identifier)) {
         return std::make_unique<IdentifierExpr>(previous().lexeme);
     }

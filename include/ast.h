@@ -31,6 +31,12 @@ struct BoolExpr : Expr {
     }
 };
 
+struct InputExpr : Expr {
+    std::string toString() const override {
+        return "input";
+    }
+};
+
 struct IdentifierExpr : Expr {
     std::string name;
 
