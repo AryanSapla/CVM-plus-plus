@@ -91,6 +91,11 @@ void Compiler::compileExpression(const Expr* expr) {
         return;
     }
 
+    if (dynamic_cast<const InputExpr*>(expr) != nullptr) {
+        instructions.emplace_back(OpCode::Input);
+        return;
+    }
+
     if (const auto* identifierExpr = dynamic_cast<const IdentifierExpr*>(expr)) {
         instructions.emplace_back(OpCode::LoadVar, identifierExpr->name);
         return;

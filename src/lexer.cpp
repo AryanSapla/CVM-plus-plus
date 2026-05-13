@@ -136,6 +136,10 @@ Token Lexer::identifier() {
         return makeToken(TokenType::Print, text);
     }
 
+    if (text == "input") {
+        return makeToken(TokenType::Input, text);
+    }
+
     if (text == "if") {
         return makeToken(TokenType::If, text);
     }

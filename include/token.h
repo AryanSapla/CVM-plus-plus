@@ -8,6 +8,7 @@ enum class TokenType {
     Identifier,
     Let,
     Print,
+    Input,
     If,
     Else,
     While,
@@ -40,6 +41,7 @@ inline const char* tokenTypeToString(TokenType type) {
         case TokenType::Identifier: return "Identifier";
         case TokenType::Let: return "Let";
         case TokenType::Print: return "Print";
+        case TokenType::Input: return "Input";
         case TokenType::If: return "If";
         case TokenType::Else: return "Else";
         case TokenType::While: return "While";
