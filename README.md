@@ -2,22 +2,8 @@
 
 CVM++ is a small compiler project written in C++ that takes a custom scripting language through the full pipeline:
 
-## OVERALL EXECUTION FLOW
-Source Code
-    ->
-Lexer
-    ->
-Tokens
-    ->
-Parser
-    ->
-AST
-    ->
-Compiler
-    ->
-Bytecode
-    ->
-Virtual Machine
+## Execution Pipeline
+Source Code -> Lexer -> Tokens -> Parser -> AST -> Compiler -> Bytecode -> Virtual Machine
 
 ## Features
 
