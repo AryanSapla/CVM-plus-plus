@@ -28,6 +28,7 @@ private:
     std::unique_ptr<Expr> comparison();
     std::unique_ptr<Expr> term();
     std::unique_ptr<Expr> factor();
+    std::unique_ptr<Expr> unary();
     std::unique_ptr<Expr> primary();
 
     bool match(TokenType type);

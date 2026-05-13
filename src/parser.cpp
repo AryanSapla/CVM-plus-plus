@@ -215,11 +215,11 @@ std::unique_ptr<Expr> Parser::term() {
 }
 
 std::unique_ptr<Expr> Parser::factor() {
-    std::unique_ptr<Expr> expr = primary();
+    std::unique_ptr<Expr> expr = unary();
 
     while (match(TokenType::Star) || match(TokenType::Slash)) {
         Token op = previous();
-        std::unique_ptr<Expr> right = primary();
+        std::unique_ptr<Expr> right = unary();
         if (!expr || !right) {
             return nullptr;
         }
@@ -227,6 +227,19 @@ std::unique_ptr<Expr> Parser::factor() {
     }
 
     return expr;
+}
+
+std::unique_ptr<Expr> Parser::unary() {
+    if (match(TokenType::Minus)) {
+        Token op = previous();
+        std::unique_ptr<Expr> right = unary();
+        if (!right) {
+            return nullptr;
+        }
+        return std::make_unique<UnaryExpr>(op.lexeme, std::move(right));
+    }
+
+    return primary();
 }
 
 std::unique_ptr<Expr> Parser::primary() {

@@ -101,6 +101,22 @@ void Compiler::compileExpression(const Expr* expr) {
         return;
     }
 
+    if (const auto* unaryExpr = dynamic_cast<const UnaryExpr*>(expr)) {
+        if (unaryExpr->op == "-") {
+            if (const auto* numberExpr = dynamic_cast<const NumberExpr*>(unaryExpr->right.get())) {
+                instructions.emplace_back(OpCode::PushInt, "-" + numberExpr->value);
+                return;
+            }
+
+            compileExpression(unaryExpr->right.get());
+            instructions.emplace_back(OpCode::PushInt, "-1");
+            instructions.emplace_back(OpCode::Multiply);
+            return;
+        }
+
+        throw std::runtime_error("Unknown unary operator: " + unaryExpr->op);
+    }
+
     if (const auto* binaryExpr = dynamic_cast<const BinaryExpr*>(expr)) {
         compileExpression(binaryExpr->left.get());
         compileExpression(binaryExpr->right.get());

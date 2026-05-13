@@ -47,6 +47,18 @@ struct IdentifierExpr : Expr {
     }
 };
 
+struct UnaryExpr : Expr {
+    std::string op;
+    std::unique_ptr<Expr> right;
+
+    UnaryExpr(std::string op, std::unique_ptr<Expr> right)
+        : op(std::move(op)), right(std::move(right)) {}
+
+    std::string toString() const override {
+        return "(" + op + right->toString() + ")";
+    }
+};
+
 struct BinaryExpr : Expr {
     std::unique_ptr<Expr> left;
     std::string op;
