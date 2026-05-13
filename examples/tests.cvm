@@ -1,13 +1,1 @@
-let limit = input;
-let x = 0;
-
-while (x < limit) {
-    print x;
-    x = x + 1;
-}
-
-if (limit == 3) {
-    print true;
-} else {
-    print false;
-}
+print x = 3;

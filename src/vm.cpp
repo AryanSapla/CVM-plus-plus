@@ -1,8 +1,62 @@
 #include "vm.h"
 
 #include <iostream>
+#include <limits>
 #include <string>
 #include <stdexcept>
+
+namespace {
+
+int ensureIntRange(long long value, const std::string& context) {
+    if (value < std::numeric_limits<int>::min() || value > std::numeric_limits<int>::max()) {
+        throw std::runtime_error(context);
+    }
+
+    return static_cast<int>(value);
+}
+
+int parseIntValue(const std::string& text, const std::string& context) {
+    try {
+        std::size_t parsedChars = 0;
+        long long value = std::stoll(text, &parsedChars);
+
+        if (parsedChars != text.size()) {
+            throw std::runtime_error("Invalid integer " + context + ": " + text);
+        }
+
+        return ensureIntRange(value, "Integer " + context + " is outside 32-bit int range: " + text);
+    } catch (const std::invalid_argument&) {
+        throw std::runtime_error("Invalid integer " + context + ": " + text);
+    } catch (const std::out_of_range&) {
+        throw std::runtime_error("Integer " + context + " is outside 32-bit int range: " + text);
+    }
+}
+
+int checkedAdd(int left, int right) {
+    return ensureIntRange(static_cast<long long>(left) + static_cast<long long>(right),
+                          "Integer overflow during addition.");
+}
+
+int checkedSubtract(int left, int right) {
+    return ensureIntRange(static_cast<long long>(left) - static_cast<long long>(right),
+                          "Integer overflow during subtraction.");
+}
+
+int checkedMultiply(int left, int right) {
+    return ensureIntRange(static_cast<long long>(left) * static_cast<long long>(right),
+                          "Integer overflow during multiplication.");
+}
+
+int checkedDivide(int left, int right) {
+    if (right == 0) {
+        throw std::runtime_error("Division by zero.");
+    }
+
+    return ensureIntRange(static_cast<long long>(left) / static_cast<long long>(right),
+                          "Integer overflow during division.");
+}
+
+}  // namespace
 
 void VM::execute(const std::vector<Instruction>& instructions) {
     execute(instructions, std::cin, std::cout);
@@ -19,7 +73,7 @@ void VM::execute(const std::vector<Instruction>& instructions, std::istream& inp
 
         switch (instruction.opcode) {
             case OpCode::PushInt:
-                push(std::stoi(instruction.operand));
+                push(parseIntValue(instruction.operand, "literal"));
                 break;
 
             case OpCode::Input: {
@@ -28,7 +82,7 @@ void VM::execute(const std::vector<Instruction>& instructions, std::istream& inp
                 if (!std::getline(input, line)) {
                     throw std::runtime_error("Failed to read input.");
                 }
-                push(std::stoi(line));
+                push(parseIntValue(line, "input"));
                 break;
             }
 
@@ -50,33 +104,28 @@ void VM::execute(const std::vector<Instruction>& instructions, std::istream& inp
             case OpCode::Add: {
                 int right = pop();
                 int left = pop();
-                push(left + right);
+                push(checkedAdd(left, right));
                 break;
             }
 
             case OpCode::Subtract: {
                 int right = pop();
                 int left = pop();
-                push(left - right);
+                push(checkedSubtract(left, right));
                 break;
             }
 
             case OpCode::Multiply: {
                 int right = pop();
                 int left = pop();
-                push(left * right);
+                push(checkedMultiply(left, right));
                 break;
             }
 
             case OpCode::Divide: {
                 int right = pop();
                 int left = pop();
-
-                if (right == 0) {
-                    throw std::runtime_error("Division by zero.");
-                }
-
-                push(left / right);
+                push(checkedDivide(left, right));
                 break;
             }
 
