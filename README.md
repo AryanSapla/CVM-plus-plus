@@ -63,6 +63,13 @@ cd build
 ./cvmpp ../examples/test.cvm
 ```
 
+Show tokens, AST, and bytecode only when needed:
+
+```bash
+cd build
+./cvmpp --debug ../examples/test.cvm
+```
+
 Try the input demo:
 
 ```bash
@@ -99,4 +106,5 @@ if (limit == 3) {
 
 - Booleans are currently represented by the VM as `1` for true and `0` for false.
 - The runtime reads integer input for the `input` keyword.
-- The executable prints tokens, AST, bytecode, and final VM output to make the compiler pipeline easy to observe.
+- Normal execution prints only the final program output.
+- Use `--debug` to print tokens, AST, and bytecode.
