@@ -1,5 +1,8 @@
+#include <fstream>
 #include <iostream>
 #include <memory>
+#include <sstream>
+#include <stdexcept>
 #include <vector>
 
 #include "compiler.h"
@@ -8,8 +11,32 @@
 #include "token.h"
 #include "vm.h"
 
-int main() {
-    std::string source = "let x = 10 + 20 * 2; print x;";
+std::string readFile(const std::string& path) {
+    std::ifstream input(path);
+
+    if (!input) {
+        throw std::runtime_error("Could not open file: " + path);
+    }
+
+    std::stringstream buffer;
+    buffer << input.rdbuf();
+    return buffer.str();
+}
+
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        std::cout << "Usage: ./cvmpp <file.cvm>\n";
+        return 1;
+    }
+
+    std::string source;
+
+    try {
+        source = readFile(argv[1]);
+    } catch (const std::exception& error) {
+        std::cout << error.what() << '\n';
+        return 1;
+    }
 
     Lexer lexer(source);
     std::vector<Token> tokens = lexer.tokenize();
