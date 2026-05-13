@@ -10,4 +10,5 @@ add_executable(cvmpp
     src/main.cpp
     src/lexer.cpp
     src/parser.cpp
+    src/compiler.cpp
 )
