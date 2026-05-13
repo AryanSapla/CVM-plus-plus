@@ -47,6 +47,20 @@ std::vector<std::unique_ptr<Stmt>> parseSource(const std::string& source) {
     return statements;
 }
 
+std::string parseErrorFor(const std::string& source) {
+    std::vector<Token> tokens = lexSource(source);
+    Parser parser(tokens);
+    std::vector<std::unique_ptr<Stmt>> statements = parser.parse();
+
+    for (const auto& statement : statements) {
+        if (!statement) {
+            return parser.getErrorMessage();
+        }
+    }
+
+    throw std::runtime_error("Expected parse error was not produced.");
+}
+
 std::vector<Instruction> compileSource(const std::string& source) {
     std::vector<std::unique_ptr<Stmt>> statements = parseSource(source);
     Compiler compiler;
@@ -154,6 +168,13 @@ void testUndefinedVariable() {
     });
 }
 
+void testParseErrors() {
+    expect(parseErrorFor("print @;") == "Unexpected token '@' in expression.",
+           "Invalid token parse error message failed.");
+    expect(parseErrorFor("print 5") == "Expected ';' after print value. Found end of file.",
+           "Missing semicolon parse error message failed.");
+}
+
 }  // namespace
 
 int main() {
@@ -170,6 +191,7 @@ int main() {
         testInvalidInput();
         testArithmeticOverflow();
         testUndefinedVariable();
+        testParseErrors();
     } catch (const std::exception& error) {
         std::cerr << "Test failure: " << error.what() << '\n';
         return 1;

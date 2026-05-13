@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "ast.h"
@@ -12,6 +13,7 @@ class Parser {
 public:
     explicit Parser(const std::vector<Token>& tokens);
     std::vector<std::unique_ptr<Stmt>> parse();
+    const std::string& getErrorMessage() const;
 
 private:
     std::unique_ptr<Stmt> statement();
@@ -32,15 +34,20 @@ private:
     std::unique_ptr<Expr> primary();
 
     bool match(TokenType type);
+    bool consume(TokenType type, const std::string& message);
     bool check(TokenType type) const;
     bool checkNext(TokenType type) const;
     const Token& advance();
     const Token& peek() const;
     const Token& previous() const;
     bool isAtEnd() const;
+    void setError(const std::string& message);
+    std::string describeToken(const Token& token) const;
+    std::string describeCurrentToken() const;
 
     const std::vector<Token>& tokens;
     std::size_t current;
+    std::string errorMessage;
 };
 
 #endif
