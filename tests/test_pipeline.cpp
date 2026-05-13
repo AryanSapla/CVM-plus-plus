@@ -81,6 +81,11 @@ void testArithmeticAndAssignment() {
     expect(executeSource(source) == "5\n", "Arithmetic or assignment execution failed.");
 }
 
+void testNegativeNumbers() {
+    expect(executeSource("print -5;") == "-5\n", "Negative literal execution failed.");
+    expect(executeSource("print -(2 + 3);") == "-5\n", "Unary minus expression execution failed.");
+}
+
 void testPrintDefinedVariable() {
     expect(executeSource("let x = 42; print x;") == "42\n", "Printing a variable failed.");
 }
@@ -155,6 +160,7 @@ int main() {
     try {
         testLexerKeywords();
         testArithmeticAndAssignment();
+        testNegativeNumbers();
         testPrintDefinedVariable();
         testControlFlow();
         testInputExecution();
