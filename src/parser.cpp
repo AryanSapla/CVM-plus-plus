@@ -6,7 +6,12 @@ std::vector<std::unique_ptr<Stmt>> Parser::parse() {
     std::vector<std::unique_ptr<Stmt>> statements;
 
     while (!isAtEnd()) {
-        statements.push_back(statement());
+        std::unique_ptr<Stmt> stmt = statement();
+        if (!stmt) {
+            statements.push_back(nullptr);
+            break;
+        }
+        statements.push_back(std::move(stmt));
     }
 
     return statements;
@@ -19,6 +24,10 @@ std::unique_ptr<Stmt> Parser::statement() {
 
     if (match(TokenType::Print)) {
         return printStatement();
+    }
+
+    if (check(TokenType::Identifier) && checkNext(TokenType::Equal)) {
+        return assignmentStatement();
     }
 
     return expressionStatement();
@@ -54,6 +63,22 @@ std::unique_ptr<Stmt> Parser::printStatement() {
     return std::make_unique<PrintStmt>(std::move(value));
 }
 
+std::unique_ptr<Stmt> Parser::assignmentStatement() {
+    Token nameToken = advance();
+
+    if (!match(TokenType::Equal)) {
+        return nullptr;
+    }
+
+    std::unique_ptr<Expr> value = expression();
+
+    if (!match(TokenType::Semicolon)) {
+        return nullptr;
+    }
+
+    return std::make_unique<AssignStmt>(nameToken.lexeme, std::move(value));
+}
+
 std::unique_ptr<Stmt> Parser::expressionStatement() {
     std::unique_ptr<Expr> expr = expression();
 
@@ -65,11 +90,33 @@ std::unique_ptr<Stmt> Parser::expressionStatement() {
 }
 
 std::unique_ptr<Expr> Parser::expression() {
+    return equality();
+}
+
+std::unique_ptr<Expr> Parser::equality() {
+    std::unique_ptr<Expr> expr = comparison();
+
+    while (match(TokenType::EqualEqual)) {
+        Token op = previous();
+        std::unique_ptr<Expr> right = comparison();
+        if (!expr || !right) {
+            return nullptr;
+        }
+        expr = std::make_unique<BinaryExpr>(std::move(expr), op.lexeme, std::move(right));
+    }
+
+    return expr;
+}
+
+std::unique_ptr<Expr> Parser::comparison() {
     std::unique_ptr<Expr> expr = term();
 
-    while (match(TokenType::Plus) || match(TokenType::Minus)) {
+    while (match(TokenType::Less)) {
         Token op = previous();
         std::unique_ptr<Expr> right = term();
+        if (!expr || !right) {
+            return nullptr;
+        }
         expr = std::make_unique<BinaryExpr>(std::move(expr), op.lexeme, std::move(right));
     }
 
@@ -79,9 +126,12 @@ std::unique_ptr<Expr> Parser::expression() {
 std::unique_ptr<Expr> Parser::term() {
     std::unique_ptr<Expr> expr = factor();
 
-    while (match(TokenType::Star) || match(TokenType::Slash)) {
+    while (match(TokenType::Plus) || match(TokenType::Minus)) {
         Token op = previous();
         std::unique_ptr<Expr> right = factor();
+        if (!expr || !right) {
+            return nullptr;
+        }
         expr = std::make_unique<BinaryExpr>(std::move(expr), op.lexeme, std::move(right));
     }
 
@@ -89,8 +139,31 @@ std::unique_ptr<Expr> Parser::term() {
 }
 
 std::unique_ptr<Expr> Parser::factor() {
+    std::unique_ptr<Expr> expr = primary();
+
+    while (match(TokenType::Star) || match(TokenType::Slash)) {
+        Token op = previous();
+        std::unique_ptr<Expr> right = primary();
+        if (!expr || !right) {
+            return nullptr;
+        }
+        expr = std::make_unique<BinaryExpr>(std::move(expr), op.lexeme, std::move(right));
+    }
+
+    return expr;
+}
+
+std::unique_ptr<Expr> Parser::primary() {
     if (match(TokenType::Number)) {
         return std::make_unique<NumberExpr>(previous().lexeme);
+    }
+
+    if (match(TokenType::True)) {
+        return std::make_unique<BoolExpr>(true);
+    }
+
+    if (match(TokenType::False)) {
+        return std::make_unique<BoolExpr>(false);
     }
 
     if (match(TokenType::Identifier)) {
@@ -125,6 +198,14 @@ bool Parser::check(TokenType type) const {
     }
 
     return peek().type == type;
+}
+
+bool Parser::checkNext(TokenType type) const {
+    if (current + 1 >= tokens.size()) {
+        return false;
+    }
+
+    return tokens[current + 1].type == type;
 }
 
 const Token& Parser::advance() {

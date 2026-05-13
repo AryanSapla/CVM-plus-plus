@@ -21,6 +21,16 @@ struct NumberExpr : Expr {
     }
 };
 
+struct BoolExpr : Expr {
+    bool value;
+
+    explicit BoolExpr(bool value) : value(value) {}
+
+    std::string toString() const override {
+        return value ? "true" : "false";
+    }
+};
+
 struct IdentifierExpr : Expr {
     std::string name;
 
@@ -69,6 +79,18 @@ struct PrintStmt : Stmt {
 
     std::string toString() const override {
         return "print " + value->toString();
+    }
+};
+
+struct AssignStmt : Stmt {
+    std::string name;
+    std::unique_ptr<Expr> value;
+
+    AssignStmt(std::string name, std::unique_ptr<Expr> value)
+        : name(std::move(name)), value(std::move(value)) {}
+
+    std::string toString() const override {
+        return name + " = " + value->toString();
     }
 };
 

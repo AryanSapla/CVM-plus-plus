@@ -42,7 +42,15 @@ std::vector<Token> Lexer::tokenize() {
                 tokens.push_back(makeToken(TokenType::Slash, "/"));
                 break;
             case '=':
-                tokens.push_back(makeToken(TokenType::Equal, "="));
+                if (!isAtEnd() && peek() == '=') {
+                    advance();
+                    tokens.push_back(makeToken(TokenType::EqualEqual, "=="));
+                } else {
+                    tokens.push_back(makeToken(TokenType::Equal, "="));
+                }
+                break;
+            case '<':
+                tokens.push_back(makeToken(TokenType::Less, "<"));
                 break;
             case ';':
                 tokens.push_back(makeToken(TokenType::Semicolon, ";"));
@@ -120,6 +128,14 @@ Token Lexer::identifier() {
 
     if (text == "print") {
         return makeToken(TokenType::Print, text);
+    }
+
+    if (text == "true") {
+        return makeToken(TokenType::True, text);
+    }
+
+    if (text == "false") {
+        return makeToken(TokenType::False, text);
     }
 
     return makeToken(TokenType::Identifier, text);

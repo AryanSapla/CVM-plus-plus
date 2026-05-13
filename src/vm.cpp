@@ -62,6 +62,20 @@ void VM::execute(const std::vector<Instruction>& instructions) {
                 break;
             }
 
+            case OpCode::Equal: {
+                int right = pop();
+                int left = pop();
+                push(left == right ? 1 : 0);
+                break;
+            }
+
+            case OpCode::Less: {
+                int right = pop();
+                int left = pop();
+                push(left < right ? 1 : 0);
+                break;
+            }
+
             case OpCode::Print: {
                 int value = pop();
                 std::cout << value << '\n';
