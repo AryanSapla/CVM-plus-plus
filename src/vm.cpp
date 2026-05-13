@@ -5,6 +5,10 @@
 #include <stdexcept>
 
 void VM::execute(const std::vector<Instruction>& instructions) {
+    execute(instructions, std::cin, std::cout);
+}
+
+void VM::execute(const std::vector<Instruction>& instructions, std::istream& input, std::ostream& output) {
     stack.clear();
     variables.clear();
 
@@ -20,8 +24,8 @@ void VM::execute(const std::vector<Instruction>& instructions) {
 
             case OpCode::Input: {
                 std::string line;
-                std::cout << "input> ";
-                if (!std::getline(std::cin, line)) {
+                output << "input> ";
+                if (!std::getline(input, line)) {
                     throw std::runtime_error("Failed to read input.");
                 }
                 push(std::stoi(line));
@@ -105,7 +109,7 @@ void VM::execute(const std::vector<Instruction>& instructions) {
 
             case OpCode::Print: {
                 int value = pop();
-                std::cout << value << '\n';
+                output << value << '\n';
                 break;
             }
 

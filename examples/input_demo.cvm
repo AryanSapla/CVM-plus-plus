@@ -1,0 +1,7 @@
+let limit = input;
+let current = 0;
+
+while (current < limit) {
+    print current;
+    current = current + 1;
+}
