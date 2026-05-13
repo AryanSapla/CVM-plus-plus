@@ -4,19 +4,19 @@ CVM++ is a small compiler project written in C++ that takes a custom scripting l
 
 ## OVERALL EXECUTION FLOW
 Source Code
-    ↓
+    ->
 Lexer
-    ↓
+    ->
 Tokens
-    ↓
+    ->
 Parser
-    ↓
+    ->
 AST
-    ↓
+    ->
 Compiler
-    ↓
+    ->
 Bytecode
-    ↓
+    ->
 Virtual Machine
 
 ## Features
