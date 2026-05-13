@@ -21,28 +21,12 @@ CVM++ is a small compiler project written in C++ that takes a custom scripting l
 
 ```text
 CVM++/
-├── include/
-│   ├── ast.h
-│   ├── compiler.h
-│   ├── lexer.h
-│   ├── opcode.h
-│   ├── parser.h
-│   ├── token.h
-│   └── vm.h
-├── src/
-│   ├── compiler.cpp
-│   ├── lexer.cpp
-│   ├── main.cpp
-│   ├── parser.cpp
-│   └── vm.cpp
-├── examples/
-│   ├── control_flow.cvm
-│   ├── input_demo.cvm
-│   ├── math.cvm
-│   └── test.cvm
-├── tests/
-│   └── test_pipeline.cpp
-└── CMakeLists.txt
+├── include/        # headers for lexer, parser, compiler, VM
+├── src/            # implementation files
+├── examples/       # sample .cvm programs
+├── tests/          # pipeline and runtime tests
+├── build/          # generated build files
+└── CMakeLists.txt  # build configuration
 ```
 
 ## Build
