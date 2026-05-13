@@ -19,6 +19,17 @@ void expect(bool condition, const std::string& message) {
     }
 }
 
+template <typename Func>
+void expectRuntimeError(const std::string& expectedMessage, Func func) {
+    try {
+        func();
+        throw std::runtime_error("Expected runtime error was not thrown.");
+    } catch (const std::exception& error) {
+        expect(error.what() == expectedMessage,
+               "Expected runtime error '" + expectedMessage + "' but got '" + error.what() + "'.");
+    }
+}
+
 std::vector<Token> lexSource(const std::string& source) {
     Lexer lexer(source);
     return lexer.tokenize();
@@ -70,6 +81,10 @@ void testArithmeticAndAssignment() {
     expect(executeSource(source) == "5\n", "Arithmetic or assignment execution failed.");
 }
 
+void testPrintDefinedVariable() {
+    expect(executeSource("let x = 42; print x;") == "42\n", "Printing a variable failed.");
+}
+
 void testControlFlow() {
     const std::string source =
         "let x = 0; "
@@ -98,14 +113,57 @@ void testInputExecution() {
     expect(executeSource(source, "2\n") == "input> 0\n1\n", "Input execution failed.");
 }
 
+void testDivisionByZero() {
+    expectRuntimeError("Division by zero.", []() {
+        executeSource("print 10 / 0;");
+    });
+}
+
+void testIntegerLiteralOutOfRange() {
+    expectRuntimeError("Integer literal is outside 32-bit int range: 2147483648", []() {
+        executeSource("print 2147483648;");
+    });
+}
+
+void testInputOutOfRange() {
+    expectRuntimeError("Integer input is outside 32-bit int range: 2147483648", []() {
+        executeSource("let x = input; print x;", "2147483648\n");
+    });
+}
+
+void testInvalidInput() {
+    expectRuntimeError("Invalid integer input: hello", []() {
+        executeSource("let x = input; print x;", "hello\n");
+    });
+}
+
+void testArithmeticOverflow() {
+    expectRuntimeError("Integer overflow during addition.", []() {
+        executeSource("print 2147483647 + 1;");
+    });
+}
+
+void testUndefinedVariable() {
+    expectRuntimeError("Undefined variable: x", []() {
+        executeSource("print x;");
+    });
+}
+
 }  // namespace
 
 int main() {
     try {
         testLexerKeywords();
         testArithmeticAndAssignment();
+        testPrintDefinedVariable();
         testControlFlow();
         testInputExecution();
+        testDivisionByZero();
+        testIntegerLiteralOutOfRange();
+        testInputOutOfRange();
+        testInvalidInput();
+        testArithmeticOverflow();
+        testUndefinedVariable();
     } catch (const std::exception& error) {
         std::cerr << "Test failure: " << error.what() << '\n';
         return 1;
