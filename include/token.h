@@ -20,7 +20,11 @@ enum class TokenType {
     Slash,
     Equal,
     EqualEqual,
+    NotEqual,
     Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
     Semicolon,
     LeftParen,
     RightParen,
@@ -33,35 +37,40 @@ enum class TokenType {
 struct Token {
     TokenType type;
     std::string lexeme;
+    int line;
 };
 
 inline const char* tokenTypeToString(TokenType type) {
     switch (type) {
-        case TokenType::Number: return "Number";
-        case TokenType::Identifier: return "Identifier";
-        case TokenType::Let: return "Let";
-        case TokenType::Print: return "Print";
-        case TokenType::Input: return "Input";
-        case TokenType::If: return "If";
-        case TokenType::Else: return "Else";
-        case TokenType::While: return "While";
-        case TokenType::True: return "True";
-        case TokenType::False: return "False";
-        case TokenType::Plus: return "Plus";
-        case TokenType::Minus: return "Minus";
-        case TokenType::Star: return "Star";
-        case TokenType::Slash: return "Slash";
-        case TokenType::Equal: return "Equal";
-        case TokenType::EqualEqual: return "EqualEqual";
-        case TokenType::Less: return "Less";
-        case TokenType::Semicolon: return "Semicolon";
-        case TokenType::LeftParen: return "LeftParen";
-        case TokenType::RightParen: return "RightParen";
-        case TokenType::LeftBrace: return "LeftBrace";
-        case TokenType::RightBrace: return "RightBrace";
-        case TokenType::EndOfFile: return "EndOfFile";
-        case TokenType::Invalid: return "Invalid";
-        default: return "Unknown";
+        case TokenType::Number:       return "Number";
+        case TokenType::Identifier:   return "Identifier";
+        case TokenType::Let:          return "Let";
+        case TokenType::Print:        return "Print";
+        case TokenType::Input:        return "Input";
+        case TokenType::If:           return "If";
+        case TokenType::Else:         return "Else";
+        case TokenType::While:        return "While";
+        case TokenType::True:         return "True";
+        case TokenType::False:        return "False";
+        case TokenType::Plus:         return "Plus";
+        case TokenType::Minus:        return "Minus";
+        case TokenType::Star:         return "Star";
+        case TokenType::Slash:        return "Slash";
+        case TokenType::Equal:        return "Equal";
+        case TokenType::EqualEqual:   return "EqualEqual";
+        case TokenType::NotEqual:     return "NotEqual";
+        case TokenType::Less:         return "Less";
+        case TokenType::LessEqual:    return "LessEqual";
+        case TokenType::Greater:      return "Greater";
+        case TokenType::GreaterEqual: return "GreaterEqual";
+        case TokenType::Semicolon:    return "Semicolon";
+        case TokenType::LeftParen:    return "LeftParen";
+        case TokenType::RightParen:   return "RightParen";
+        case TokenType::LeftBrace:    return "LeftBrace";
+        case TokenType::RightBrace:   return "RightBrace";
+        case TokenType::EndOfFile:    return "EndOfFile";
+        case TokenType::Invalid:      return "Invalid";
+        default:                      return "Unknown";
     }
 }
 

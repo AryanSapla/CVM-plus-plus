@@ -11,17 +11,17 @@ std::vector<Instruction> Compiler::compile(const std::vector<std::unique_ptr<Stm
         }
     }
 
-    instructions.emplace_back(OpCode::Halt);
+    emit(OpCode::Halt);
     return instructions;
 }
 
 void Compiler::compileStatement(const Stmt* stmt) {
+    if (stmt->line > 0) currentLine = stmt->line;
+
     if (const auto* blockStmt = dynamic_cast<const BlockStmt*>(stmt)) {
-        for (const auto& statement : blockStmt->statements) {
-            if (!statement) {
-                throw std::runtime_error("Invalid statement inside block.");
-            }
-            compileStatement(statement.get());
+        for (const auto& s : blockStmt->statements) {
+            if (!s) throw std::runtime_error("Invalid statement inside block.");
+            compileStatement(s.get());
         }
         return;
     }
@@ -55,96 +55,98 @@ void Compiler::compileStatement(const Stmt* stmt) {
 
     if (const auto* letStmt = dynamic_cast<const LetStmt*>(stmt)) {
         compileExpression(letStmt->value.get());
-        instructions.emplace_back(OpCode::StoreVar, letStmt->name);
+        emit(OpCode::StoreVar, letStmt->name);
         return;
     }
 
     if (const auto* assignStmt = dynamic_cast<const AssignStmt*>(stmt)) {
         compileExpression(assignStmt->value.get());
-        instructions.emplace_back(OpCode::StoreVar, assignStmt->name);
+        emit(OpCode::StoreVar, assignStmt->name);
         return;
     }
 
     if (const auto* printStmt = dynamic_cast<const PrintStmt*>(stmt)) {
         compileExpression(printStmt->value.get());
-        instructions.emplace_back(OpCode::Print);
+        emit(OpCode::Print);
         return;
     }
 
     if (const auto* exprStmt = dynamic_cast<const ExprStmt*>(stmt)) {
         compileExpression(exprStmt->expression.get());
-        instructions.emplace_back(OpCode::Pop);
+        emit(OpCode::Pop);
         return;
     }
 
-    throw std::runtime_error("Unsupported statement type.");
+    throw std::runtime_error("Compiler error: Unsupported statement type.");
 }
 
 void Compiler::compileExpression(const Expr* expr) {
     if (const auto* numberExpr = dynamic_cast<const NumberExpr*>(expr)) {
-        instructions.emplace_back(OpCode::PushInt, numberExpr->value);
+        emit(OpCode::PushInt, numberExpr->value);
         return;
     }
 
     if (const auto* boolExpr = dynamic_cast<const BoolExpr*>(expr)) {
-        instructions.emplace_back(OpCode::PushInt, boolExpr->value ? "1" : "0");
+        emit(OpCode::PushInt, boolExpr->value ? "1" : "0");
         return;
     }
 
     if (dynamic_cast<const InputExpr*>(expr) != nullptr) {
-        instructions.emplace_back(OpCode::Input);
+        emit(OpCode::Input);
         return;
     }
 
     if (const auto* identifierExpr = dynamic_cast<const IdentifierExpr*>(expr)) {
-        instructions.emplace_back(OpCode::LoadVar, identifierExpr->name);
+        emit(OpCode::LoadVar, identifierExpr->name);
         return;
     }
 
     if (const auto* unaryExpr = dynamic_cast<const UnaryExpr*>(expr)) {
         if (unaryExpr->op == "-") {
-            if (const auto* numberExpr = dynamic_cast<const NumberExpr*>(unaryExpr->right.get())) {
-                instructions.emplace_back(OpCode::PushInt, "-" + numberExpr->value);
+            if (const auto* numExpr = dynamic_cast<const NumberExpr*>(unaryExpr->right.get())) {
+                emit(OpCode::PushInt, "-" + numExpr->value);
                 return;
             }
-
             compileExpression(unaryExpr->right.get());
-            instructions.emplace_back(OpCode::PushInt, "-1");
-            instructions.emplace_back(OpCode::Multiply);
+            emit(OpCode::PushInt, "-1");
+            emit(OpCode::Multiply);
             return;
         }
-
-        throw std::runtime_error("Unknown unary operator: " + unaryExpr->op);
+        if (unaryExpr->op == "not") {
+            compileExpression(unaryExpr->right.get());
+            emit(OpCode::Not);
+            return;
+        }
+        throw std::runtime_error("Compiler error: Unknown unary operator '" + unaryExpr->op + "'.");
     }
 
     if (const auto* binaryExpr = dynamic_cast<const BinaryExpr*>(expr)) {
         compileExpression(binaryExpr->left.get());
         compileExpression(binaryExpr->right.get());
 
-        if (binaryExpr->op == "+") {
-            instructions.emplace_back(OpCode::Add);
-        } else if (binaryExpr->op == "-") {
-            instructions.emplace_back(OpCode::Subtract);
-        } else if (binaryExpr->op == "*") {
-            instructions.emplace_back(OpCode::Multiply);
-        } else if (binaryExpr->op == "/") {
-            instructions.emplace_back(OpCode::Divide);
-        } else if (binaryExpr->op == "==") {
-            instructions.emplace_back(OpCode::Equal);
-        } else if (binaryExpr->op == "<") {
-            instructions.emplace_back(OpCode::Less);
-        } else {
-            throw std::runtime_error("Unknown binary operator: " + binaryExpr->op);
-        }
-
+        const std::string& op = binaryExpr->op;
+        if      (op == "+")   emit(OpCode::Add);
+        else if (op == "-")   emit(OpCode::Subtract);
+        else if (op == "*")   emit(OpCode::Multiply);
+        else if (op == "/")   emit(OpCode::Divide);
+        else if (op == "%")   emit(OpCode::Modulo);
+        else if (op == "==")  emit(OpCode::Equal);
+        else if (op == "!=")  emit(OpCode::NotEqual);
+        else if (op == "<")   emit(OpCode::Less);
+        else if (op == "<=")  emit(OpCode::LessEqual);
+        else if (op == ">")   emit(OpCode::Greater);
+        else if (op == ">=")  emit(OpCode::GreaterEqual);
+        else if (op == "and") emit(OpCode::And);
+        else if (op == "or")  emit(OpCode::Or);
+        else throw std::runtime_error("Compiler error: Unknown binary operator '" + op + "'.");
         return;
     }
 
-    throw std::runtime_error("Unsupported expression type.");
+    throw std::runtime_error("Compiler error: Unsupported expression type.");
 }
 
 std::size_t Compiler::emit(OpCode opcode, const std::string& operand) {
-    instructions.emplace_back(opcode, operand);
+    instructions.emplace_back(opcode, operand, currentLine);
     return instructions.size() - 1;
 }
 

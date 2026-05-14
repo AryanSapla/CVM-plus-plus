@@ -7,12 +7,13 @@
 #include <vector>
 
 struct Expr {
+    int line = 0;
     virtual ~Expr() = default;
     virtual std::string toString() const = 0;
 };
 
 struct NumberExpr : Expr {
-    std::string value;
+    std::string value;   // stored as string to preserve exact literal text
 
     explicit NumberExpr(std::string value) : value(std::move(value)) {}
 
@@ -72,7 +73,10 @@ struct BinaryExpr : Expr {
     }
 };
 
+// ─── Statements ──────────────────────────────────────────────────────────────
+
 struct Stmt {
+    int line = 0;
     virtual ~Stmt() = default;
     virtual std::string toString() const = 0;
 };
@@ -128,15 +132,16 @@ struct IfStmt : Stmt {
     std::unique_ptr<Stmt> thenBranch;
     std::unique_ptr<Stmt> elseBranch;
 
-    IfStmt(std::unique_ptr<Expr> condition, std::unique_ptr<Stmt> thenBranch, std::unique_ptr<Stmt> elseBranch)
+    IfStmt(std::unique_ptr<Expr> condition,
+           std::unique_ptr<Stmt> thenBranch,
+           std::unique_ptr<Stmt> elseBranch)
         : condition(std::move(condition)),
           thenBranch(std::move(thenBranch)),
           elseBranch(std::move(elseBranch)) {}
 
     std::string toString() const override {
-        if (elseBranch) {
+        if (elseBranch)
             return "if (" + condition->toString() + ") ... else ...";
-        }
         return "if (" + condition->toString() + ") ...";
     }
 };

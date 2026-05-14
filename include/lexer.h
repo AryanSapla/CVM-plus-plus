@@ -2,10 +2,26 @@
 #define LEXER_H
 
 #include <cstddef>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "token.h"
+
+// ─── Lexer Error ──────────────────────────────────────────────────────────────
+// Thrown by Lexer::tokenize() for unexpected characters.
+// Format:  [Lexer Error] [Line N]:\nUnexpected character 'X'
+struct LexerError : std::runtime_error {
+    int line;
+    std::string header;   // e.g. "[Lexer Error] [Line 3]"
+    std::string detail;   // e.g. "Unexpected character '@'"
+
+    explicit LexerError(const std::string& detail, int line)
+        : std::runtime_error("[Lexer Error] [Line " + std::to_string(line) + "]:\n" + detail),
+          line(line),
+          header("[Lexer Error] [Line " + std::to_string(line) + "]"),
+          detail(detail) {}
+};
 
 class Lexer {
 public:
@@ -15,8 +31,10 @@ public:
 private:
     char advance();
     char peek() const;
+    char peekNext() const;
     bool isAtEnd() const;
     void skipWhitespace();
+    void skipLineComment();
 
     Token number();
     Token identifier();
@@ -24,6 +42,7 @@ private:
 
     std::string source;
     std::size_t current;
+    int line;
 };
 
 #endif

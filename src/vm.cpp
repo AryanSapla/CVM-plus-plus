@@ -1,163 +1,286 @@
 #include "vm.h"
 
+#include <climits>
 #include <iostream>
 #include <limits>
+#include <sstream>
 #include <string>
 #include <stdexcept>
 
+// ─── Internal arithmetic helpers ─────────────────────────────────────────────
+
 namespace {
 
-int ensureIntRange(long long value, const std::string& context) {
-    if (value < std::numeric_limits<int>::min() || value > std::numeric_limits<int>::max()) {
-        throw std::runtime_error(context);
-    }
+// long long range: -(2^63) to 2^63-1
+// We use __int128 for overflow detection where available, otherwise check manually.
 
-    return static_cast<int>(value);
-}
-
-int parseIntValue(const std::string& text, const std::string& context) {
+long long parseLongValue(const std::string& text, bool isInput) {
     try {
         std::size_t parsedChars = 0;
         long long value = std::stoll(text, &parsedChars);
-
         if (parsedChars != text.size()) {
-            throw std::runtime_error("Invalid integer " + context + ": " + text);
+            throw std::runtime_error(isInput ? "Expected integer input"
+                                             : "Invalid integer literal: " + text);
         }
-
-        return ensureIntRange(value, "Integer " + context + " is outside 32-bit int range: " + text);
+        return value;
     } catch (const std::invalid_argument&) {
-        throw std::runtime_error("Invalid integer " + context + ": " + text);
+        throw std::runtime_error(isInput ? "Expected integer input, received non-integer"
+                                         : "Invalid integer literal: " + text);
     } catch (const std::out_of_range&) {
-        throw std::runtime_error("Integer " + context + " is outside 32-bit int range: " + text);
+        throw std::runtime_error(
+            isInput ? "Integer input is outside 64-bit range: " + text
+                    : "Integer literal is outside 64-bit range: " + text);
     }
 }
 
-int checkedAdd(int left, int right) {
-    return ensureIntRange(static_cast<long long>(left) + static_cast<long long>(right),
-                          "Integer overflow during addition.");
+// Use __int128 to detect overflow safely
+long long checkedAdd(long long a, long long b) {
+    __int128 r = (__int128)a + (__int128)b;
+    if (r > std::numeric_limits<long long>::max() ||
+        r < std::numeric_limits<long long>::min())
+        throw std::runtime_error("Integer overflow during addition");
+    return (long long)r;
 }
 
-int checkedSubtract(int left, int right) {
-    return ensureIntRange(static_cast<long long>(left) - static_cast<long long>(right),
-                          "Integer overflow during subtraction.");
+long long checkedSubtract(long long a, long long b) {
+    __int128 r = (__int128)a - (__int128)b;
+    if (r > std::numeric_limits<long long>::max() ||
+        r < std::numeric_limits<long long>::min())
+        throw std::runtime_error("Integer overflow during subtraction");
+    return (long long)r;
 }
 
-int checkedMultiply(int left, int right) {
-    return ensureIntRange(static_cast<long long>(left) * static_cast<long long>(right),
-                          "Integer overflow during multiplication.");
+long long checkedMultiply(long long a, long long b) {
+    __int128 r = (__int128)a * (__int128)b;
+    if (r > std::numeric_limits<long long>::max() ||
+        r < std::numeric_limits<long long>::min())
+        throw std::runtime_error("Integer overflow during multiplication");
+    return (long long)r;
 }
 
-int checkedDivide(int left, int right) {
-    if (right == 0) {
-        throw std::runtime_error("Division by zero.");
-    }
+long long checkedDivide(long long a, long long b) {
+    if (b == 0) throw std::runtime_error("Division by zero");
+    // Only overflow case: LLONG_MIN / -1
+    if (a == std::numeric_limits<long long>::min() && b == -1)
+        throw std::runtime_error("Integer overflow during division");
+    return a / b;
+}
 
-    return ensureIntRange(static_cast<long long>(left) / static_cast<long long>(right),
-                          "Integer overflow during division.");
+long long checkedModulo(long long a, long long b) {
+    if (b == 0) throw std::runtime_error("Modulo by zero");
+    return a % b;
 }
 
 }  // namespace
 
+// ─── VM ──────────────────────────────────────────────────────────────────────
+
 void VM::execute(const std::vector<Instruction>& instructions) {
-    execute(instructions, std::cin, std::cout);
+    execute(instructions, "", std::cin, std::cout);
 }
 
-void VM::execute(const std::vector<Instruction>& instructions, std::istream& input, std::ostream& output) {
+void VM::execute(const std::vector<Instruction>& instructions,
+                 const std::string& /*source*/,
+                 std::istream& input,
+                 std::ostream& output) {
     stack.clear();
     variables.clear();
 
     std::size_t ip = 0;
 
+    // Helper: build a RuntimeError with line info
+    auto runtimeErr = [&](const std::string& msg, const std::string& tok = "") -> RuntimeError {
+        int ln = instructions[ip].line;
+        return RuntimeError(msg, ln, tok);
+    };
+
     while (ip < instructions.size()) {
-        const Instruction& instruction = instructions[ip];
+        const Instruction& instr = instructions[ip];
 
-        switch (instruction.opcode) {
-            case OpCode::PushInt:
-                push(parseIntValue(instruction.operand, "literal"));
+        switch (instr.opcode) {
+
+            // ── Push a literal ────────────────────────────────────────────────
+            case OpCode::PushInt: {
+                try {
+                    push(parseLongValue(instr.operand, false));
+                } catch (const std::exception& e) {
+                    int ln = instr.line;
+                    throw RuntimeError(e.what(), ln, instr.operand);
+                }
                 break;
+            }
 
+            // ── Read from stdin ───────────────────────────────────────────────
             case OpCode::Input: {
                 std::string line;
                 output << "input> ";
                 if (!std::getline(input, line)) {
-                    throw std::runtime_error("Failed to read input.");
+                    throw runtimeErr("Failed to read input");
                 }
-                push(parseIntValue(line, "input"));
+                // Trim trailing whitespace/CR
+                while (!line.empty() && (line.back() == '\r' || line.back() == ' '))
+                    line.pop_back();
+
+                try {
+                    push(parseLongValue(line, true));
+                } catch (const std::exception& e) {
+                    int ln = instr.line;
+                    // Check if the input is non-integer (letters etc.)
+                    bool hasAlpha = false;
+                    for (char c : line)
+                        if (std::isalpha((unsigned char)c)) { hasAlpha = true; break; }
+                    if (hasAlpha) {
+                        throw TypeMismatchError(
+                            std::string("Expected integer input, received string '") + line + "'",
+                            ln);
+                    }
+                    throw runtimeErr(e.what());
+                }
                 break;
             }
 
+            // ── Variable load ─────────────────────────────────────────────────
             case OpCode::LoadVar: {
-                auto it = variables.find(instruction.operand);
+                auto it = variables.find(instr.operand);
                 if (it == variables.end()) {
-                    throw std::runtime_error("Undefined variable: " + instruction.operand);
+                    // Should have been caught by semantic analysis; keep as safety net
+                    throw runtimeErr("Undefined variable '" + instr.operand + "'", instr.operand);
                 }
                 push(it->second);
                 break;
             }
 
+            // ── Variable store ────────────────────────────────────────────────
             case OpCode::StoreVar: {
-                int value = pop();
-                variables[instruction.operand] = value;
+                long long value = pop();
+                variables[instr.operand] = value;
                 break;
             }
 
+            // ── Arithmetic ────────────────────────────────────────────────────
             case OpCode::Add: {
-                int right = pop();
-                int left = pop();
-                push(checkedAdd(left, right));
+                long long right = pop(), left = pop();
+                try { push(checkedAdd(left, right)); }
+                catch (const std::exception& e) {
+                    std::string tok = std::to_string(left) + "+" + std::to_string(right);
+                    throw runtimeErr(e.what(), tok);
+                }
                 break;
             }
 
             case OpCode::Subtract: {
-                int right = pop();
-                int left = pop();
-                push(checkedSubtract(left, right));
+                long long right = pop(), left = pop();
+                try { push(checkedSubtract(left, right)); }
+                catch (const std::exception& e) {
+                    std::string tok = std::to_string(left) + "-" + std::to_string(right);
+                    throw runtimeErr(e.what(), tok);
+                }
                 break;
             }
 
             case OpCode::Multiply: {
-                int right = pop();
-                int left = pop();
-                push(checkedMultiply(left, right));
+                long long right = pop(), left = pop();
+                try { push(checkedMultiply(left, right)); }
+                catch (const std::exception& e) {
+                    std::string tok = std::to_string(left) + "*" + std::to_string(right);
+                    throw runtimeErr(e.what(), tok);
+                }
                 break;
             }
 
             case OpCode::Divide: {
-                int right = pop();
-                int left = pop();
-                push(checkedDivide(left, right));
+                long long right = pop(), left = pop();
+                try { push(checkedDivide(left, right)); }
+                catch (const std::exception& e) {
+                    std::string tok = std::to_string(left) + "/" + std::to_string(right);
+                    throw runtimeErr(e.what(), tok);
+                }
                 break;
             }
 
+            case OpCode::Modulo: {
+                long long right = pop(), left = pop();
+                try { push(checkedModulo(left, right)); }
+                catch (const std::exception& e) {
+                    std::string tok = std::to_string(left) + "%" + std::to_string(right);
+                    throw runtimeErr(e.what(), tok);
+                }
+                break;
+            }
+
+            // ── Comparison ────────────────────────────────────────────────────
             case OpCode::Equal: {
-                int right = pop();
-                int left = pop();
+                long long right = pop(), left = pop();
                 push(left == right ? 1 : 0);
                 break;
             }
 
+            case OpCode::NotEqual: {
+                long long right = pop(), left = pop();
+                push(left != right ? 1 : 0);
+                break;
+            }
+
             case OpCode::Less: {
-                int right = pop();
-                int left = pop();
+                long long right = pop(), left = pop();
                 push(left < right ? 1 : 0);
                 break;
             }
 
+            case OpCode::LessEqual: {
+                long long right = pop(), left = pop();
+                push(left <= right ? 1 : 0);
+                break;
+            }
+
+            case OpCode::Greater: {
+                long long right = pop(), left = pop();
+                push(left > right ? 1 : 0);
+                break;
+            }
+
+            case OpCode::GreaterEqual: {
+                long long right = pop(), left = pop();
+                push(left >= right ? 1 : 0);
+                break;
+            }
+
+            // ── Logical ───────────────────────────────────────────────────────
+            case OpCode::And: {
+                long long right = pop(), left = pop();
+                push((left != 0 && right != 0) ? 1 : 0);
+                break;
+            }
+
+            case OpCode::Or: {
+                long long right = pop(), left = pop();
+                push((left != 0 || right != 0) ? 1 : 0);
+                break;
+            }
+
+            case OpCode::Not: {
+                long long val = pop();
+                push(val == 0 ? 1 : 0);
+                break;
+            }
+
+            // ── Control flow ──────────────────────────────────────────────────
             case OpCode::Jump:
-                ip = static_cast<std::size_t>(std::stoul(instruction.operand));
+                ip = static_cast<std::size_t>(std::stoull(instr.operand));
                 continue;
 
             case OpCode::JumpIfFalse: {
-                int condition = pop();
+                long long condition = pop();
                 if (condition == 0) {
-                    ip = static_cast<std::size_t>(std::stoul(instruction.operand));
+                    ip = static_cast<std::size_t>(std::stoull(instr.operand));
                     continue;
                 }
                 break;
             }
 
+            // ── I/O ───────────────────────────────────────────────────────────
             case OpCode::Print: {
-                int value = pop();
+                long long value = pop();
                 output << value << '\n';
                 break;
             }
@@ -168,22 +291,26 @@ void VM::execute(const std::vector<Instruction>& instructions, std::istream& inp
 
             case OpCode::Halt:
                 return;
+
+            // ── Unknown opcode ────────────────────────────────────────────────
+            default: {
+                throw VMError("Unknown opcode encountered: " +
+                              std::to_string(static_cast<int>(instr.opcode)));
+            }
         }
 
         ip++;
     }
 }
 
-void VM::push(int value) {
+void VM::push(long long value) {
     stack.push_back(value);
 }
 
-int VM::pop() {
-    if (stack.empty()) {
-        throw std::runtime_error("Stack underflow.");
-    }
-
-    int value = stack.back();
+long long VM::pop() {
+    if (stack.empty())
+        throw VMError("Stack underflow during operation");
+    long long value = stack.back();
     stack.pop_back();
     return value;
 }
