@@ -72,7 +72,7 @@ std::string executeSource(const std::string& source, const std::string& input = 
     std::istringstream in(input);
     std::ostringstream out;
     VM vm;
-    vm.execute(bytecode, in, out);
+    vm.execute(bytecode, "", in, out);
     return out.str();
 }
 

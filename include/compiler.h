@@ -20,6 +20,7 @@ private:
     void patchOperand(std::size_t index, std::size_t target);
 
     std::vector<Instruction> instructions;
+    int currentLine = 0;
 };
 
 #endif
