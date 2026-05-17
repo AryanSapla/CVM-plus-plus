@@ -33,6 +33,7 @@ std::vector<Token> Lexer::tokenize() {
         switch (c) {
             case '+': tokens.push_back(makeToken(TokenType::Plus,      "+")); break;
             case '-': tokens.push_back(makeToken(TokenType::Minus,     "-")); break;
+            case '^': tokens.push_back(makeToken(TokenType::Caret,     "^")); break;
             case '*': tokens.push_back(makeToken(TokenType::Star,      "*")); break;
             case '%': tokens.push_back(makeToken(TokenType::Star,      "%")); break; // reuse Star slot — handled in parser
             case ';': tokens.push_back(makeToken(TokenType::Semicolon, ";")); break;

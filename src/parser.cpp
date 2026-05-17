@@ -302,7 +302,21 @@ std::unique_ptr<Expr> Parser::unary() {
         return node;
     }
 
-    return primary();
+    return power();
+}
+
+std::unique_ptr<Expr> Parser::power() {
+    auto expr = primary();
+
+    if (match(TokenType::Caret)) {
+        Token op = previous();
+        auto right = unary();
+        auto node = std::make_unique<BinaryExpr>(std::move(expr), op.lexeme, std::move(right));
+        node->line = op.line;
+        return node;
+    }
+
+    return expr;
 }
 
 std::unique_ptr<Expr> Parser::primary() {

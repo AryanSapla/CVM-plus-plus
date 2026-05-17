@@ -116,6 +116,29 @@ long long checkedMultiply(long long left, long long right, ValueType resultType)
     return ensureRange128(result, resultType, "Integer overflow during multiplication");
 }
 
+long long checkedPower(long long base, long long exponent, ValueType resultType) {
+    if (exponent < 0) {
+        throw std::runtime_error("Negative exponent is not supported");
+    }
+
+    long long result = 1;
+    long long currentBase = base;
+    long long currentExponent = exponent;
+
+    while (currentExponent > 0) {
+        if (currentExponent % 2 == 1) {
+            result = checkedMultiply(result, currentBase, resultType);
+        }
+
+        currentExponent /= 2;
+        if (currentExponent > 0) {
+            currentBase = checkedMultiply(currentBase, currentBase, resultType);
+        }
+    }
+
+    return ensureRange(result, resultType, "Integer overflow during power");
+}
+
 long long checkedDivide(long long left, long long right, ValueType resultType) {
     if (right == 0) {
         throw std::runtime_error("Division by zero");
@@ -271,6 +294,18 @@ void VM::execute(const std::vector<Instruction>& instructions,
                     push(checkedSubtract(left.value, right.value, resultType), resultType);
                 } catch (const std::exception& error) {
                     throw runtimeErr(error.what(), arithmeticToken(left.value, "-", right.value));
+                }
+                break;
+            }
+
+            case OpCode::Power: {
+                TypedValue right = pop();
+                TypedValue left = pop();
+                ValueType resultType = promotedType(left.type, right.type);
+                try {
+                    push(checkedPower(left.value, right.value, resultType), resultType);
+                } catch (const std::exception& error) {
+                    throw runtimeErr(error.what(), arithmeticToken(left.value, "^", right.value));
                 }
                 break;
             }
