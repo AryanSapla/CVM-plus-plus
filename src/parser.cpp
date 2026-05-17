@@ -227,7 +227,7 @@ std::unique_ptr<Expr> Parser::logicalOr() {
 }
 
 std::unique_ptr<Expr> Parser::logicalAnd() {
-    auto expr = equality();
+    auto expr = bitwiseOr();
 
     while (true) {
         Token op;
@@ -240,8 +240,64 @@ std::unique_ptr<Expr> Parser::logicalAnd() {
             break;
         }
 
-        auto right = equality();
+        auto right = bitwiseOr();
         auto node = std::make_unique<BinaryExpr>(std::move(expr), "and", std::move(right));
+        node->line = op.line;
+        expr = std::move(node);
+    }
+
+    return expr;
+}
+
+std::unique_ptr<Expr> Parser::bitwiseOr() {
+    auto expr = bitwiseXor();
+
+    while (match(TokenType::Pipe)) {
+        Token op = previous();
+        auto right = bitwiseXor();
+        auto node = std::make_unique<BinaryExpr>(std::move(expr), "|", std::move(right));
+        node->line = op.line;
+        expr = std::move(node);
+    }
+
+    return expr;
+}
+
+std::unique_ptr<Expr> Parser::bitwiseXor() {
+    auto expr = bitwiseAnd();
+
+    while (match(TokenType::Caret)) {
+        Token op = previous();
+        auto right = bitwiseAnd();
+        auto node = std::make_unique<BinaryExpr>(std::move(expr), "^", std::move(right));
+        node->line = op.line;
+        expr = std::move(node);
+    }
+
+    return expr;
+}
+
+std::unique_ptr<Expr> Parser::bitwiseAnd() {
+    auto expr = shift();
+
+    while (match(TokenType::Ampersand)) {
+        Token op = previous();
+        auto right = shift();
+        auto node = std::make_unique<BinaryExpr>(std::move(expr), "&", std::move(right));
+        node->line = op.line;
+        expr = std::move(node);
+    }
+
+    return expr;
+}
+
+std::unique_ptr<Expr> Parser::shift() {
+    auto expr = term();
+
+    while (match(TokenType::LessLess) || match(TokenType::GreaterGreater)) {
+        Token op = previous();
+        auto right = term();
+        auto node = std::make_unique<BinaryExpr>(std::move(expr), op.lexeme, std::move(right));
         node->line = op.line;
         expr = std::move(node);
     }
@@ -264,12 +320,12 @@ std::unique_ptr<Expr> Parser::equality() {
 }
 
 std::unique_ptr<Expr> Parser::comparison() {
-    auto expr = term();
+    auto expr = shift();
 
     while (match(TokenType::Less) || match(TokenType::LessEqual) ||
            match(TokenType::Greater) || match(TokenType::GreaterEqual)) {
         Token op = previous();
-        auto right = term();
+        auto right = shift();
         auto node = std::make_unique<BinaryExpr>(std::move(expr), op.lexeme, std::move(right));
         node->line = op.line;
         expr = std::move(node);
@@ -295,7 +351,7 @@ std::unique_ptr<Expr> Parser::term() {
 std::unique_ptr<Expr> Parser::factor() {
     auto expr = unary();
 
-    while (match(TokenType::Star) || match(TokenType::Slash)) {
+    while (match(TokenType::Star) || match(TokenType::Slash) || match(TokenType::Percent)) {
         Token op = previous();
         auto right = unary();
         auto node = std::make_unique<BinaryExpr>(std::move(expr), op.lexeme, std::move(right));
@@ -323,6 +379,14 @@ std::unique_ptr<Expr> Parser::unary() {
         return node;
     }
 
+    if (match(TokenType::Tilde)) {
+        Token op = previous();
+        auto right = unary();
+        auto node = std::make_unique<UnaryExpr>("~", std::move(right));
+        node->line = op.line;
+        return node;
+    }
+
     if (check(TokenType::Identifier) && peek().lexeme == "not") {
         Token op = advance();
         auto right = unary();
@@ -337,10 +401,10 @@ std::unique_ptr<Expr> Parser::unary() {
 std::unique_ptr<Expr> Parser::power() {
     auto expr = primary();
 
-    if (match(TokenType::Caret)) {
+    if (match(TokenType::CaretCaret)) {
         Token op = previous();
         auto right = unary();
-        auto node = std::make_unique<BinaryExpr>(std::move(expr), op.lexeme, std::move(right));
+        auto node = std::make_unique<BinaryExpr>(std::move(expr), "^^", std::move(right));
         node->line = op.line;
         return node;
     }

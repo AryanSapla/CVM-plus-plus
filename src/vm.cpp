@@ -434,6 +434,82 @@ void VM::execute(const std::vector<Instruction>& instructions,
                 break;
             }
 
+            case OpCode::BitAnd: {
+                TypedValue right = pop();
+                TypedValue left = pop();
+                if (left.type == ValueType::Bool || right.type == ValueType::Bool) {
+                    throw runtimeErr("Bitwise '&' is not supported on bool values");
+                }
+                ValueType resultType = numericResultType(left.type, right.type);
+                push(left.value & right.value, resultType);
+                break;
+            }
+
+            case OpCode::BitOr: {
+                TypedValue right = pop();
+                TypedValue left = pop();
+                if (left.type == ValueType::Bool || right.type == ValueType::Bool) {
+                    throw runtimeErr("Bitwise '|' is not supported on bool values");
+                }
+                ValueType resultType = numericResultType(left.type, right.type);
+                push(left.value | right.value, resultType);
+                break;
+            }
+
+            case OpCode::BitXor: {
+                TypedValue right = pop();
+                TypedValue left = pop();
+                if (left.type == ValueType::Bool || right.type == ValueType::Bool) {
+                    throw runtimeErr("Bitwise '^' is not supported on bool values");
+                }
+                ValueType resultType = numericResultType(left.type, right.type);
+                push(left.value ^ right.value, resultType);
+                break;
+            }
+
+            case OpCode::ShiftLeft: {
+                TypedValue right = pop();
+                TypedValue left = pop();
+                if (left.type == ValueType::Bool || right.type == ValueType::Bool) {
+                    throw runtimeErr("Shift '<<' is not supported on bool values");
+                }
+                if (right.value < 0) {
+                    throw runtimeErr("Shift amount cannot be negative: " + std::to_string(right.value));
+                }
+                if (right.value >= 64) {
+                    throw runtimeErr("Shift amount too large: " + std::to_string(right.value));
+                }
+                ValueType resultType = numericResultType(left.type, right.type);
+                push(left.value << right.value, resultType);
+                break;
+            }
+
+            case OpCode::ShiftRight: {
+                TypedValue right = pop();
+                TypedValue left = pop();
+                if (left.type == ValueType::Bool || right.type == ValueType::Bool) {
+                    throw runtimeErr("Shift '>>' is not supported on bool values");
+                }
+                if (right.value < 0) {
+                    throw runtimeErr("Shift amount cannot be negative: " + std::to_string(right.value));
+                }
+                if (right.value >= 64) {
+                    throw runtimeErr("Shift amount too large: " + std::to_string(right.value));
+                }
+                ValueType resultType = numericResultType(left.type, right.type);
+                push(left.value >> right.value, resultType);
+                break;
+            }
+
+            case OpCode::BitNot: {
+                TypedValue value = pop();
+                if (value.type == ValueType::Bool) {
+                    throw runtimeErr("Bitwise '~' is not supported on bool values");
+                }
+                push(~value.value, value.type);
+                break;
+            }
+
             case OpCode::Jump:
                 ip = static_cast<std::size_t>(std::stoull(instr.operand));
                 continue;
