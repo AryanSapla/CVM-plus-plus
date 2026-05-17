@@ -66,7 +66,7 @@ static std::string buildUnderline(const std::string& srcLine,
     if (pos == std::string::npos) {
         for (std::size_t i = 1; i + 1 < needle.size(); ++i) {
             char op = needle[i];
-            if (op == '+' || op == '-' || op == '*' || op == '/' || op == '%') {
+            if (op == '+' || op == '-' || op == '*' || op == '/' || op == '%' || op == '^') {
                 std::string spaced = needle.substr(0, i) + " " + op + " " + needle.substr(i + 1);
                 pos = tryPos(spaced);
                 if (pos != std::string::npos) { needle = spaced; break; }
@@ -211,6 +211,9 @@ int main(int argc, char* argv[]) {
     try {
         Parser parser(tokens);
         statements = parser.parse();
+    } catch (const SemanticError& e) {
+        printError(e.header, e.detail, e.line, source, e.token);
+        return 1;
     } catch (const ParseError& e) {
         printError(e.header, e.detail, e.line, source, e.token);
         return 1;

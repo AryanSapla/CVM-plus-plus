@@ -12,9 +12,18 @@ std::vector<Token> Lexer::tokenize() {
 
         char c = peek();
 
-        // Single-line comment: // ... skip to end of line
         if (c == '/' && peekNext() == '/') {
             skipLineComment();
+            continue;
+        }
+
+        if (c == '#') {
+            skipHashComment();
+            continue;
+        }
+
+        if (c == '/' && peekNext() == '*') {
+            skipBlockComment();
             continue;
         }
 
@@ -126,9 +135,43 @@ void Lexer::skipWhitespace() {
 }
 
 void Lexer::skipLineComment() {
-    // consume '//'
-    advance(); advance();
-    while (!isAtEnd() && peek() != '\n') advance();
+    advance();
+    advance();
+    while (!isAtEnd() && peek() != '\n') {
+        advance();
+    }
+}
+
+void Lexer::skipHashComment() {
+    advance();
+    while (!isAtEnd() && peek() != '\n') {
+        advance();
+    }
+}
+
+void Lexer::skipBlockComment() {
+    int startLine = line;
+
+    advance();
+    advance();
+
+    while (!isAtEnd()) {
+        if (peek() == '\n') {
+            line++;
+            advance();
+            continue;
+        }
+
+        if (peek() == '*' && peekNext() == '/') {
+            advance();
+            advance();
+            return;
+        }
+
+        advance();
+    }
+
+    throw LexerError("Unterminated block comment", startLine, "/*");
 }
 
 Token Lexer::number() {

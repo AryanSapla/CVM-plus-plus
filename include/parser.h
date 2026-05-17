@@ -5,6 +5,8 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "ast.h"
@@ -23,6 +25,20 @@ struct ParseError : std::runtime_error {
         : std::runtime_error("[Parse Error] [Line " + std::to_string(line) + "]:\n" + detail),
           line(line),
           header("[Parse Error] [Line " + std::to_string(line) + "]"),
+          detail(detail),
+          token(token) {}
+};
+
+struct SemanticError : std::runtime_error {
+    int line;
+    std::string header;
+    std::string detail;
+    std::string token;
+
+    explicit SemanticError(const std::string& detail, int line, const std::string& token = "")
+        : std::runtime_error("[Semantic Error] [Line " + std::to_string(line) + "]:\n" + detail),
+          line(line),
+          header("[Semantic Error] [Line " + std::to_string(line) + "]"),
           detail(detail),
           token(token) {}
 };
@@ -59,6 +75,15 @@ private:
     std::unique_ptr<Expr> power();
     std::unique_ptr<Expr> primary();
 
+    using DeclaredSet = std::unordered_set<std::string>;
+
+    void        runSemanticChecks(const std::vector<std::unique_ptr<Stmt>>& statements) const;
+    DeclaredSet checkStatements(const std::vector<std::unique_ptr<Stmt>>& statements,
+                                DeclaredSet declared) const;
+    DeclaredSet checkStatement(const Stmt* stmt, DeclaredSet declared) const;
+    void        checkExpression(const Expr* expr, const DeclaredSet& declared) const;
+    DeclaredSet intersectDeclared(const DeclaredSet& left, const DeclaredSet& right) const;
+
     // ── Token helpers ────────────────────────────────────────────────────────
     bool         match(TokenType type);
     void         consume(TokenType type, const std::string& message);
@@ -71,6 +96,7 @@ private:
 
     [[noreturn]] void parseError(const std::string& message, int line, const std::string& token = "") const;
     [[noreturn]] void parseError(const std::string& message) const;
+    [[noreturn]] void semanticError(const std::string& message, int line, const std::string& token = "") const;
 
     std::string describeToken(const Token& token) const;
     std::string describeCurrentToken() const;

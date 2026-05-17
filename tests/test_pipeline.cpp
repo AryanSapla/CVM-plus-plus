@@ -50,6 +50,21 @@ void expectParseError(const std::string& expectedDetail,
 }
 
 template <typename Func>
+void expectSemanticError(const std::string& expectedDetail,
+                         int expectedLine,
+                         const std::string& expectedToken,
+                         Func func) {
+    try {
+        func();
+        throw std::runtime_error("Expected semantic error was not thrown.");
+    } catch (const SemanticError& error) {
+        expect(error.detail == expectedDetail, "Unexpected semantic error detail.");
+        expect(error.line == expectedLine, "Unexpected semantic error line.");
+        expect(error.token == expectedToken, "Unexpected semantic underline token.");
+    }
+}
+
+template <typename Func>
 void expectRuntimeError(const std::string& expectedDetail,
                         int expectedLine,
                         const std::string& expectedToken,
@@ -99,6 +114,23 @@ void testLexerKeywords() {
     expect(tokens[11].type == TokenType::IntKeyword, "Expected trailing int keyword token.");
 }
 
+void testComments() {
+    expect(executeSource(
+               "# skip this line\n"
+               "print 2;\n"
+               "/* multi\n"
+               "line\n"
+               "comment */\n"
+               "print 3;\n"
+               "// c++ style comment\n"
+               "print 4;\n") == "2\n3\n4\n",
+           "Comment handling failed.");
+
+    expectLexerError("Unterminated block comment", 1, "/*", []() {
+        lexSource("/* missing end");
+    });
+}
+
 void testTypedDeclarations() {
     expect(executeSource("let x = 5; print x;") == "5\n", "let declaration failed.");
     expect(executeSource("int x = 2147483647; print x;") == "2147483647\n", "int declaration failed.");
@@ -137,10 +169,6 @@ void testControlFlowAndInput() {
 }
 
 void testRuntimeFailures() {
-    expectRuntimeError("Undefined variable 'x'", 1, "x", []() {
-        executeSource("print x;");
-    });
-
     expectRuntimeError("Division by zero", 1, "10/0", []() {
         executeSource("print 10 / 0;");
     });
@@ -163,6 +191,16 @@ void testRuntimeFailures() {
 
     expectRuntimeError("Negative exponent is not supported", 1, "2^-1", []() {
         executeSource("print 2 ^ -1;");
+    });
+}
+
+void testSemanticFailures() {
+    expectSemanticError("Undefined variable 'x'", 1, "x", []() {
+        parseSource("print x;");
+    });
+
+    expectSemanticError("Undefined variable 'x'", 1, "x", []() {
+        parseSource("x = 5;");
     });
 }
 
@@ -213,11 +251,13 @@ void testLexerAndParseFailures() {
 int main() {
     try {
         testLexerKeywords();
+        testComments();
         testTypedDeclarations();
         testNegativeNumbers();
         testPowerOperator();
         testControlFlowAndInput();
         testRuntimeFailures();
+        testSemanticFailures();
         testLexerAndParseFailures();
     } catch (const std::exception& error) {
         std::cerr << "Test failure: " << error.what() << '\n';

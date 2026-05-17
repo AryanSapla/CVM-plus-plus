@@ -37,6 +37,8 @@ private:
     bool isAtEnd() const;
     void skipWhitespace();
     void skipLineComment();
+    void skipHashComment();
+    void skipBlockComment();
 
     Token number();
     Token identifier();
