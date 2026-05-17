@@ -10,6 +10,7 @@ std::vector<std::unique_ptr<Stmt>> Parser::parse() {
         statements.push_back(statement());
     }
 
+    runSemanticChecks(statements);
     return statements;
 }
 
@@ -363,6 +364,111 @@ std::unique_ptr<Expr> Parser::primary() {
     parseError("Unexpected token " + describeCurrentToken() + " in expression", peek().line, peek().lexeme);
 }
 
+void Parser::runSemanticChecks(const std::vector<std::unique_ptr<Stmt>>& statements) const {
+    checkStatements(statements, DeclaredSet{});
+}
+
+Parser::DeclaredSet Parser::checkStatements(const std::vector<std::unique_ptr<Stmt>>& statements,
+                                            DeclaredSet declared) const {
+    for (const auto& statement : statements) {
+        declared = checkStatement(statement.get(), std::move(declared));
+    }
+
+    return declared;
+}
+
+Parser::DeclaredSet Parser::checkStatement(const Stmt* stmt, DeclaredSet declared) const {
+    if (const auto* letStmt = dynamic_cast<const LetStmt*>(stmt)) {
+        checkExpression(letStmt->value.get(), declared);
+        declared.insert(letStmt->name);
+        return declared;
+    }
+
+    if (const auto* printStmt = dynamic_cast<const PrintStmt*>(stmt)) {
+        checkExpression(printStmt->value.get(), declared);
+        return declared;
+    }
+
+    if (const auto* assignStmt = dynamic_cast<const AssignStmt*>(stmt)) {
+        if (declared.find(assignStmt->name) == declared.end()) {
+            semanticError("Undefined variable '" + assignStmt->name + "'",
+                          assignStmt->line,
+                          assignStmt->name);
+        }
+
+        checkExpression(assignStmt->value.get(), declared);
+        return declared;
+    }
+
+    if (const auto* blockStmt = dynamic_cast<const BlockStmt*>(stmt)) {
+        return checkStatements(blockStmt->statements, std::move(declared));
+    }
+
+    if (const auto* ifStmt = dynamic_cast<const IfStmt*>(stmt)) {
+        checkExpression(ifStmt->condition.get(), declared);
+
+        DeclaredSet thenDeclared = checkStatement(ifStmt->thenBranch.get(), declared);
+
+        if (!ifStmt->elseBranch) {
+            return declared;
+        }
+
+        DeclaredSet elseDeclared = checkStatement(ifStmt->elseBranch.get(), declared);
+        return intersectDeclared(thenDeclared, elseDeclared);
+    }
+
+    if (const auto* whileStmt = dynamic_cast<const WhileStmt*>(stmt)) {
+        checkExpression(whileStmt->condition.get(), declared);
+        checkStatement(whileStmt->body.get(), declared);
+        return declared;
+    }
+
+    if (const auto* exprStmt = dynamic_cast<const ExprStmt*>(stmt)) {
+        checkExpression(exprStmt->expression.get(), declared);
+        return declared;
+    }
+
+    return declared;
+}
+
+void Parser::checkExpression(const Expr* expr, const DeclaredSet& declared) const {
+    if (!expr) {
+        return;
+    }
+
+    if (const auto* identifierExpr = dynamic_cast<const IdentifierExpr*>(expr)) {
+        if (declared.find(identifierExpr->name) == declared.end()) {
+            semanticError("Undefined variable '" + identifierExpr->name + "'",
+                          identifierExpr->line,
+                          identifierExpr->name);
+        }
+        return;
+    }
+
+    if (const auto* unaryExpr = dynamic_cast<const UnaryExpr*>(expr)) {
+        checkExpression(unaryExpr->right.get(), declared);
+        return;
+    }
+
+    if (const auto* binaryExpr = dynamic_cast<const BinaryExpr*>(expr)) {
+        checkExpression(binaryExpr->left.get(), declared);
+        checkExpression(binaryExpr->right.get(), declared);
+        return;
+    }
+}
+
+Parser::DeclaredSet Parser::intersectDeclared(const DeclaredSet& left, const DeclaredSet& right) const {
+    DeclaredSet intersection;
+
+    for (const auto& name : left) {
+        if (right.find(name) != right.end()) {
+            intersection.insert(name);
+        }
+    }
+
+    return intersection;
+}
+
 bool Parser::match(TokenType type) {
     if (check(type)) {
         advance();
@@ -428,6 +534,12 @@ void Parser::parseError(const std::string& message) const {
     int errorLine = isAtEnd() ? previous().line : peek().line;
     std::string token = isAtEnd() ? previous().lexeme : peek().lexeme;
     parseError(message, errorLine, token);
+}
+
+void Parser::semanticError(const std::string& message, int line, const std::string& token) const {
+    const_cast<Parser*>(this)->errorMessage =
+        "[Semantic Error] [Line " + std::to_string(line) + "]:\n" + message;
+    throw SemanticError(message, line, token);
 }
 
 std::string Parser::describeToken(const Token& token) const {
