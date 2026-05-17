@@ -19,8 +19,10 @@ enum class TokenType {
     False,
     Plus,
     Minus,
-    Caret,
+    CaretCaret,      // ^^ power
+    Caret,           // ^  bitwise XOR
     Star,
+    Percent,         // %  modulo
     Slash,
     Bang,
     Equal,
@@ -28,10 +30,15 @@ enum class TokenType {
     NotEqual,
     AndAnd,
     OrOr,
+    Ampersand,   // &  bitwise AND
+    Pipe,        // |  bitwise OR
+    Tilde,       // ~  bitwise NOT (unary)
     Less,
     LessEqual,
+    LessLess,        // << left shift
     Greater,
     GreaterEqual,
+    GreaterGreater,  // >> right shift
     Semicolon,
     LeftParen,
     RightParen,
@@ -64,8 +71,10 @@ inline const char* tokenTypeToString(TokenType type) {
         case TokenType::False:        return "False";
         case TokenType::Plus:         return "Plus";
         case TokenType::Minus:        return "Minus";
+        case TokenType::CaretCaret:   return "CaretCaret";
         case TokenType::Caret:        return "Caret";
         case TokenType::Star:         return "Star";
+        case TokenType::Percent:      return "Percent";
         case TokenType::Slash:        return "Slash";
         case TokenType::Bang:         return "Bang";
         case TokenType::Equal:        return "Equal";
@@ -73,10 +82,15 @@ inline const char* tokenTypeToString(TokenType type) {
         case TokenType::NotEqual:     return "NotEqual";
         case TokenType::AndAnd:       return "AndAnd";
         case TokenType::OrOr:         return "OrOr";
+        case TokenType::Ampersand:    return "Ampersand";
+        case TokenType::Pipe:         return "Pipe";
+        case TokenType::Tilde:        return "Tilde";
         case TokenType::Less:         return "Less";
         case TokenType::LessEqual:    return "LessEqual";
+        case TokenType::LessLess:     return "LessLess";
         case TokenType::Greater:      return "Greater";
         case TokenType::GreaterEqual: return "GreaterEqual";
+        case TokenType::GreaterGreater: return "GreaterGreater";
         case TokenType::Semicolon:    return "Semicolon";
         case TokenType::LeftParen:    return "LeftParen";
         case TokenType::RightParen:   return "RightParen";

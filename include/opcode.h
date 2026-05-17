@@ -45,6 +45,12 @@ enum class OpCode {
     And,
     Or,
     Not,
+    BitAnd,   // &
+    BitOr,    // |
+    BitXor,   // ^
+    BitNot,   // ~
+    ShiftLeft,    // <<
+    ShiftRight,   // >>
     Jump,
     JumpIfFalse,
     Print,
@@ -86,6 +92,12 @@ inline const char* opcodeToString(OpCode opcode) {
         case OpCode::And:          return "And";
         case OpCode::Or:           return "Or";
         case OpCode::Not:          return "Not";
+        case OpCode::BitAnd:       return "BitAnd";
+        case OpCode::BitOr:        return "BitOr";
+        case OpCode::BitXor:       return "BitXor";
+        case OpCode::BitNot:       return "BitNot";
+        case OpCode::ShiftLeft:    return "ShiftLeft";
+        case OpCode::ShiftRight:   return "ShiftRight";
         case OpCode::Jump:         return "Jump";
         case OpCode::JumpIfFalse:  return "JumpIfFalse";
         case OpCode::Print:        return "Print";

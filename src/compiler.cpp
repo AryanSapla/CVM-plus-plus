@@ -118,6 +118,11 @@ void Compiler::compileExpression(const Expr* expr) {
             emit(OpCode::Multiply);
             return;
         }
+        if (unaryExpr->op == "~") {
+            compileExpression(unaryExpr->right.get());
+            emit(OpCode::BitNot);
+            return;
+        }
         if (unaryExpr->op == "not") {
             compileExpression(unaryExpr->right.get());
             emit(OpCode::Not);
@@ -167,7 +172,7 @@ void Compiler::compileExpression(const Expr* expr) {
         const std::string& op = binaryExpr->op;
         if      (op == "+")   emit(OpCode::Add);
         else if (op == "-")   emit(OpCode::Subtract);
-        else if (op == "^")   emit(OpCode::Power);
+        else if (op == "^^")  emit(OpCode::Power);
         else if (op == "*")   emit(OpCode::Multiply);
         else if (op == "/")   emit(OpCode::Divide);
         else if (op == "%")   emit(OpCode::Modulo);
@@ -177,6 +182,11 @@ void Compiler::compileExpression(const Expr* expr) {
         else if (op == "<=")  emit(OpCode::LessEqual);
         else if (op == ">")   emit(OpCode::Greater);
         else if (op == ">=")  emit(OpCode::GreaterEqual);
+        else if (op == "&")   emit(OpCode::BitAnd);
+        else if (op == "|")   emit(OpCode::BitOr);
+        else if (op == "^")   emit(OpCode::BitXor);
+        else if (op == "<<")  emit(OpCode::ShiftLeft);
+        else if (op == ">>")  emit(OpCode::ShiftRight);
         else throw std::runtime_error("Compiler error: Unknown binary operator '" + op + "'.");
         return;
     }

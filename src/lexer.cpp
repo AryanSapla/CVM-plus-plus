@@ -42,9 +42,16 @@ std::vector<Token> Lexer::tokenize() {
         switch (c) {
             case '+': tokens.push_back(makeToken(TokenType::Plus,      "+")); break;
             case '-': tokens.push_back(makeToken(TokenType::Minus,     "-")); break;
-            case '^': tokens.push_back(makeToken(TokenType::Caret,     "^")); break;
+            case '^':
+                if (!isAtEnd() && peek() == '^') {
+                    advance();
+                    tokens.push_back(makeToken(TokenType::CaretCaret, "^^"));
+                } else {
+                    tokens.push_back(makeToken(TokenType::Caret, "^"));
+                }
+                break;
             case '*': tokens.push_back(makeToken(TokenType::Star,      "*")); break;
-            case '%': tokens.push_back(makeToken(TokenType::Star,      "%")); break; // reuse Star slot — handled in parser
+            case '%': tokens.push_back(makeToken(TokenType::Percent,   "%")); break;
             case ';': tokens.push_back(makeToken(TokenType::Semicolon, ";")); break;
             case '(': tokens.push_back(makeToken(TokenType::LeftParen, "(")); break;
             case ')': tokens.push_back(makeToken(TokenType::RightParen,")")); break;
@@ -56,7 +63,10 @@ std::vector<Token> Lexer::tokenize() {
                 break;
 
             case '<':
-                if (!isAtEnd() && peek() == '=') {
+                if (!isAtEnd() && peek() == '<') {
+                    advance();
+                    tokens.push_back(makeToken(TokenType::LessLess, "<<"));
+                } else if (!isAtEnd() && peek() == '=') {
                     advance();
                     tokens.push_back(makeToken(TokenType::LessEqual, "<="));
                 } else {
@@ -65,7 +75,10 @@ std::vector<Token> Lexer::tokenize() {
                 break;
 
             case '>':
-                if (!isAtEnd() && peek() == '=') {
+                if (!isAtEnd() && peek() == '>') {
+                    advance();
+                    tokens.push_back(makeToken(TokenType::GreaterGreater, ">>"));
+                } else if (!isAtEnd() && peek() == '=') {
                     advance();
                     tokens.push_back(makeToken(TokenType::GreaterEqual, ">="));
                 } else {
@@ -87,7 +100,7 @@ std::vector<Token> Lexer::tokenize() {
                     advance();
                     tokens.push_back(makeToken(TokenType::AndAnd, "&&"));
                 } else {
-                    throw LexerError("Unexpected character '&'. Did you mean '&&'?", line, "&");
+                    tokens.push_back(makeToken(TokenType::Ampersand, "&"));
                 }
                 break;
 
@@ -96,8 +109,12 @@ std::vector<Token> Lexer::tokenize() {
                     advance();
                     tokens.push_back(makeToken(TokenType::OrOr, "||"));
                 } else {
-                    throw LexerError("Unexpected character '|'. Did you mean '||'?", line, "|");
+                    tokens.push_back(makeToken(TokenType::Pipe, "|"));
                 }
+                break;
+
+            case '~':
+                tokens.push_back(makeToken(TokenType::Tilde, "~"));
                 break;
 
             case '=':

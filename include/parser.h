@@ -67,8 +67,12 @@ private:
     std::unique_ptr<Expr> expression();
     std::unique_ptr<Expr> logicalOr();
     std::unique_ptr<Expr> logicalAnd();
+    std::unique_ptr<Expr> bitwiseOr();
+    std::unique_ptr<Expr> bitwiseXor();
+    std::unique_ptr<Expr> bitwiseAnd();
     std::unique_ptr<Expr> equality();
     std::unique_ptr<Expr> comparison();
+    std::unique_ptr<Expr> shift();
     std::unique_ptr<Expr> term();
     std::unique_ptr<Expr> factor();
     std::unique_ptr<Expr> unary();
