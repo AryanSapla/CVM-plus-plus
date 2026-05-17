@@ -55,7 +55,9 @@ void Compiler::compileStatement(const Stmt* stmt) {
 
     if (const auto* letStmt = dynamic_cast<const LetStmt*>(stmt)) {
         compileExpression(letStmt->value.get());
-        if (letStmt->declaredType == ValueType::Long) {
+        if (letStmt->declaredType == ValueType::Bool) {
+            emit(OpCode::DeclareBool, letStmt->name);
+        } else if (letStmt->declaredType == ValueType::Long) {
             emit(OpCode::DeclareLong, letStmt->name);
         } else {
             emit(OpCode::DeclareInt, letStmt->name);
@@ -91,7 +93,7 @@ void Compiler::compileExpression(const Expr* expr) {
     }
 
     if (const auto* boolExpr = dynamic_cast<const BoolExpr*>(expr)) {
-        emit(OpCode::PushInt, boolExpr->value ? "1" : "0");
+        emit(OpCode::PushBool, boolExpr->value ? "1" : "0");
         return;
     }
 
@@ -125,6 +127,40 @@ void Compiler::compileExpression(const Expr* expr) {
     }
 
     if (const auto* binaryExpr = dynamic_cast<const BinaryExpr*>(expr)) {
+        if (binaryExpr->op == "and") {
+            compileExpression(binaryExpr->left.get());
+            std::size_t leftFalseJump = emit(OpCode::JumpIfFalse);
+            compileExpression(binaryExpr->right.get());
+            std::size_t rightFalseJump = emit(OpCode::JumpIfFalse);
+            emit(OpCode::PushBool, "1");
+            std::size_t endJump = emit(OpCode::Jump);
+            std::size_t falseTarget = instructions.size();
+            emit(OpCode::PushBool, "0");
+            patchOperand(leftFalseJump, falseTarget);
+            patchOperand(rightFalseJump, falseTarget);
+            patchOperand(endJump, instructions.size());
+            return;
+        }
+
+        if (binaryExpr->op == "or") {
+            compileExpression(binaryExpr->left.get());
+            std::size_t evaluateRightJump = emit(OpCode::JumpIfFalse);
+            emit(OpCode::PushBool, "1");
+            std::size_t endJump = emit(OpCode::Jump);
+            std::size_t rightStart = instructions.size();
+            compileExpression(binaryExpr->right.get());
+            std::size_t rightFalseJump = emit(OpCode::JumpIfFalse);
+            emit(OpCode::PushBool, "1");
+            std::size_t rightEndJump = emit(OpCode::Jump);
+            std::size_t falseTarget = instructions.size();
+            emit(OpCode::PushBool, "0");
+            patchOperand(evaluateRightJump, rightStart);
+            patchOperand(rightFalseJump, falseTarget);
+            patchOperand(endJump, instructions.size());
+            patchOperand(rightEndJump, instructions.size());
+            return;
+        }
+
         compileExpression(binaryExpr->left.get());
         compileExpression(binaryExpr->right.get());
 
@@ -141,8 +177,6 @@ void Compiler::compileExpression(const Expr* expr) {
         else if (op == "<=")  emit(OpCode::LessEqual);
         else if (op == ">")   emit(OpCode::Greater);
         else if (op == ">=")  emit(OpCode::GreaterEqual);
-        else if (op == "and") emit(OpCode::And);
-        else if (op == "or")  emit(OpCode::Or);
         else throw std::runtime_error("Compiler error: Unknown binary operator '" + op + "'.");
         return;
     }

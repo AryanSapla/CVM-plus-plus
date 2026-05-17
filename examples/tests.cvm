@@ -1,1 +1,2 @@
-repeat 5;
+bool x = 2;
+print x;

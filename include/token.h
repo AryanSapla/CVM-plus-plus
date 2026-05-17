@@ -9,6 +9,7 @@ enum class TokenType {
     Let,
     IntKeyword,
     LongKeyword,
+    BoolKeyword,
     Print,
     Input,
     If,
@@ -21,9 +22,12 @@ enum class TokenType {
     Caret,
     Star,
     Slash,
+    Bang,
     Equal,
     EqualEqual,
     NotEqual,
+    AndAnd,
+    OrOr,
     Less,
     LessEqual,
     Greater,
@@ -50,6 +54,7 @@ inline const char* tokenTypeToString(TokenType type) {
         case TokenType::Let:          return "Let";
         case TokenType::IntKeyword:   return "IntKeyword";
         case TokenType::LongKeyword:  return "LongKeyword";
+        case TokenType::BoolKeyword:  return "BoolKeyword";
         case TokenType::Print:        return "Print";
         case TokenType::Input:        return "Input";
         case TokenType::If:           return "If";
@@ -62,9 +67,12 @@ inline const char* tokenTypeToString(TokenType type) {
         case TokenType::Caret:        return "Caret";
         case TokenType::Star:         return "Star";
         case TokenType::Slash:        return "Slash";
+        case TokenType::Bang:         return "Bang";
         case TokenType::Equal:        return "Equal";
         case TokenType::EqualEqual:   return "EqualEqual";
         case TokenType::NotEqual:     return "NotEqual";
+        case TokenType::AndAnd:       return "AndAnd";
+        case TokenType::OrOr:         return "OrOr";
         case TokenType::Less:         return "Less";
         case TokenType::LessEqual:    return "LessEqual";
         case TokenType::Greater:      return "Greater";

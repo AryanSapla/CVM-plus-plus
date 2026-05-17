@@ -6,12 +6,14 @@
 
 enum class ValueType {
     Unknown,
+    Bool,
     Int,
     Long
 };
 
 inline const char* valueTypeToString(ValueType type) {
     switch (type) {
+        case ValueType::Bool: return "bool";
         case ValueType::Int: return "int";
         case ValueType::Long: return "long";
         case ValueType::Unknown: return "unknown";
@@ -20,9 +22,11 @@ inline const char* valueTypeToString(ValueType type) {
 }
 
 enum class OpCode {
+    PushBool,     // operand = "0" or "1"
     PushInt,      // operand = decimal integer literal text
     Input,
     LoadVar,
+    DeclareBool,
     DeclareInt,
     DeclareLong,
     StoreVar,
@@ -59,9 +63,11 @@ struct Instruction {
 
 inline const char* opcodeToString(OpCode opcode) {
     switch (opcode) {
+        case OpCode::PushBool:     return "PushBool";
         case OpCode::PushInt:      return "PushInt";
         case OpCode::Input:        return "Input";
         case OpCode::LoadVar:      return "LoadVar";
+        case OpCode::DeclareBool:  return "DeclareBool";
         case OpCode::DeclareInt:   return "DeclareInt";
         case OpCode::DeclareLong:  return "DeclareLong";
         case OpCode::StoreVar:     return "StoreVar";
