@@ -1,0 +1,27 @@
+{
+  "files.associations": {
+    "*.cvm": "cpp"
+  },
+  "C_Cpp.errorSquiggles": "Disabled",
+  "editor.semanticHighlighting.enabled": false,
+  "editor.tokenColorCustomizations": {
+    "textMateRules": [
+      {
+        "scope": [
+          "comment",
+          "punctuation.definition.comment",
+          "meta.preprocessor",
+          "meta.preprocessor.c",
+          "meta.preprocessor.cpp",
+          "punctuation.definition.directive",
+          "keyword.control.directive",
+          "keyword.control.directive.define",
+          "entity.name.function.preprocessor"
+        ],
+        "settings": {
+          "foreground": "#6A9955"
+        }
+      }
+    ]
+  }
+}

@@ -25,6 +25,10 @@ long long longMaxValue() {
 }
 
 bool fitsInType(long long value, ValueType type) {
+    if (type == ValueType::Bool) {
+        return value == 0 || value == 1;
+    }
+
     if (type == ValueType::Int) {
         return value >= intMinValue() && value <= intMaxValue();
     }
@@ -34,6 +38,10 @@ bool fitsInType(long long value, ValueType type) {
     }
 
     return true;
+}
+
+long long normalizeBool(long long value) {
+    return value == 0 ? 0 : 1;
 }
 
 std::pair<long long, ValueType> parseNumericText(const std::string& text, bool isInput) {
@@ -93,7 +101,7 @@ long long ensureRange128(__int128 value, ValueType targetType, const std::string
     return static_cast<long long>(value);
 }
 
-ValueType promotedType(ValueType left, ValueType right) {
+ValueType numericResultType(ValueType left, ValueType right) {
     if (left == ValueType::Long || right == ValueType::Long) {
         return ValueType::Long;
     }
@@ -183,7 +191,9 @@ void VM::execute(const std::vector<Instruction>& instructions,
 
     auto storeDeclaredValue = [&](const std::string& name, ValueType targetType) {
         TypedValue value = pop();
-        long long castValue = ensureRange(value.value, targetType, rangeErrorMessage(value.value, targetType));
+        long long castValue = targetType == ValueType::Bool
+            ? normalizeBool(value.value)
+            : ensureRange(value.value, targetType, rangeErrorMessage(value.value, targetType));
         variables[name] = VariableValue{castValue, targetType};
     };
 
@@ -194,9 +204,9 @@ void VM::execute(const std::vector<Instruction>& instructions,
             throw runtimeErr("Undefined variable '" + name + "'", name);
         }
 
-        long long castValue = ensureRange(value.value,
-                                          it->second.type,
-                                          rangeErrorMessage(value.value, it->second.type));
+        long long castValue = it->second.type == ValueType::Bool
+            ? normalizeBool(value.value)
+            : ensureRange(value.value, it->second.type, rangeErrorMessage(value.value, it->second.type));
         it->second.value = castValue;
     };
 
@@ -208,6 +218,14 @@ void VM::execute(const std::vector<Instruction>& instructions,
         const Instruction& instr = instructions[ip];
 
         switch (instr.opcode) {
+            case OpCode::PushBool:
+                if (instr.operand == "0") {
+                    push(0, ValueType::Bool);
+                } else {
+                    push(1, ValueType::Bool);
+                }
+                break;
+
             case OpCode::PushInt: {
                 try {
                     auto [value, type] = parseNumericText(instr.operand, false);
@@ -256,6 +274,14 @@ void VM::execute(const std::vector<Instruction>& instructions,
                 }
                 break;
 
+            case OpCode::DeclareBool:
+                try {
+                    storeDeclaredValue(instr.operand, ValueType::Bool);
+                } catch (const std::exception& error) {
+                    throw runtimeErr(error.what(), instr.operand);
+                }
+                break;
+
             case OpCode::DeclareLong:
                 try {
                     storeDeclaredValue(instr.operand, ValueType::Long);
@@ -277,7 +303,7 @@ void VM::execute(const std::vector<Instruction>& instructions,
             case OpCode::Add: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                ValueType resultType = promotedType(left.type, right.type);
+                ValueType resultType = numericResultType(left.type, right.type);
                 try {
                     push(checkedAdd(left.value, right.value, resultType), resultType);
                 } catch (const std::exception& error) {
@@ -289,7 +315,7 @@ void VM::execute(const std::vector<Instruction>& instructions,
             case OpCode::Subtract: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                ValueType resultType = promotedType(left.type, right.type);
+                ValueType resultType = numericResultType(left.type, right.type);
                 try {
                     push(checkedSubtract(left.value, right.value, resultType), resultType);
                 } catch (const std::exception& error) {
@@ -301,7 +327,7 @@ void VM::execute(const std::vector<Instruction>& instructions,
             case OpCode::Power: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                ValueType resultType = promotedType(left.type, right.type);
+                ValueType resultType = numericResultType(left.type, right.type);
                 try {
                     push(checkedPower(left.value, right.value, resultType), resultType);
                 } catch (const std::exception& error) {
@@ -313,7 +339,7 @@ void VM::execute(const std::vector<Instruction>& instructions,
             case OpCode::Multiply: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                ValueType resultType = promotedType(left.type, right.type);
+                ValueType resultType = numericResultType(left.type, right.type);
                 try {
                     push(checkedMultiply(left.value, right.value, resultType), resultType);
                 } catch (const std::exception& error) {
@@ -325,7 +351,7 @@ void VM::execute(const std::vector<Instruction>& instructions,
             case OpCode::Divide: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                ValueType resultType = promotedType(left.type, right.type);
+                ValueType resultType = numericResultType(left.type, right.type);
                 try {
                     push(checkedDivide(left.value, right.value, resultType), resultType);
                 } catch (const std::exception& error) {
@@ -337,7 +363,7 @@ void VM::execute(const std::vector<Instruction>& instructions,
             case OpCode::Modulo: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                ValueType resultType = promotedType(left.type, right.type);
+                ValueType resultType = numericResultType(left.type, right.type);
                 try {
                     push(checkedModulo(left.value, right.value, resultType), resultType);
                 } catch (const std::exception& error) {
@@ -349,62 +375,62 @@ void VM::execute(const std::vector<Instruction>& instructions,
             case OpCode::Equal: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                push(left.value == right.value ? 1 : 0, ValueType::Int);
+                push(left.value == right.value ? 1 : 0, ValueType::Bool);
                 break;
             }
 
             case OpCode::NotEqual: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                push(left.value != right.value ? 1 : 0, ValueType::Int);
+                push(left.value != right.value ? 1 : 0, ValueType::Bool);
                 break;
             }
 
             case OpCode::Less: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                push(left.value < right.value ? 1 : 0, ValueType::Int);
+                push(left.value < right.value ? 1 : 0, ValueType::Bool);
                 break;
             }
 
             case OpCode::LessEqual: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                push(left.value <= right.value ? 1 : 0, ValueType::Int);
+                push(left.value <= right.value ? 1 : 0, ValueType::Bool);
                 break;
             }
 
             case OpCode::Greater: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                push(left.value > right.value ? 1 : 0, ValueType::Int);
+                push(left.value > right.value ? 1 : 0, ValueType::Bool);
                 break;
             }
 
             case OpCode::GreaterEqual: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                push(left.value >= right.value ? 1 : 0, ValueType::Int);
+                push(left.value >= right.value ? 1 : 0, ValueType::Bool);
                 break;
             }
 
             case OpCode::And: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                push((left.value != 0 && right.value != 0) ? 1 : 0, ValueType::Int);
+                push((left.value != 0 && right.value != 0) ? 1 : 0, ValueType::Bool);
                 break;
             }
 
             case OpCode::Or: {
                 TypedValue right = pop();
                 TypedValue left = pop();
-                push((left.value != 0 || right.value != 0) ? 1 : 0, ValueType::Int);
+                push((left.value != 0 || right.value != 0) ? 1 : 0, ValueType::Bool);
                 break;
             }
 
             case OpCode::Not: {
                 TypedValue value = pop();
-                push(value.value == 0 ? 1 : 0, ValueType::Int);
+                push(value.value == 0 ? 1 : 0, ValueType::Bool);
                 break;
             }
 

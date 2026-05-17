@@ -49,6 +49,10 @@ std::unique_ptr<Stmt> Parser::statement() {
         return declarationStatement(stmtLine, ValueType::Long, keywordText);
     }
 
+    if (match(TokenType::BoolKeyword)) {
+        return declarationStatement(stmtLine, ValueType::Bool, "bool");
+    }
+
     if (match(TokenType::Print)) {
         return printStatement(stmtLine);
     }
@@ -202,9 +206,17 @@ std::unique_ptr<Expr> Parser::expression() {
 std::unique_ptr<Expr> Parser::logicalOr() {
     auto expr = logicalAnd();
 
-    while (check(TokenType::Identifier) && peek().lexeme == "or") {
-        advance();
-        Token op = previous();
+    while (true) {
+        Token op;
+
+        if (match(TokenType::OrOr)) {
+            op = previous();
+        } else if (check(TokenType::Identifier) && peek().lexeme == "or") {
+            op = advance();
+        } else {
+            break;
+        }
+
         auto right = logicalAnd();
         auto node = std::make_unique<BinaryExpr>(std::move(expr), "or", std::move(right));
         node->line = op.line;
@@ -217,9 +229,17 @@ std::unique_ptr<Expr> Parser::logicalOr() {
 std::unique_ptr<Expr> Parser::logicalAnd() {
     auto expr = equality();
 
-    while (check(TokenType::Identifier) && peek().lexeme == "and") {
-        advance();
-        Token op = previous();
+    while (true) {
+        Token op;
+
+        if (match(TokenType::AndAnd)) {
+            op = previous();
+        } else if (check(TokenType::Identifier) && peek().lexeme == "and") {
+            op = advance();
+        } else {
+            break;
+        }
+
         auto right = equality();
         auto node = std::make_unique<BinaryExpr>(std::move(expr), "and", std::move(right));
         node->line = op.line;
@@ -287,6 +307,14 @@ std::unique_ptr<Expr> Parser::factor() {
 }
 
 std::unique_ptr<Expr> Parser::unary() {
+    if (match(TokenType::Bang)) {
+        Token op = previous();
+        auto right = unary();
+        auto node = std::make_unique<UnaryExpr>("not", std::move(right));
+        node->line = op.line;
+        return node;
+    }
+
     if (match(TokenType::Minus)) {
         Token op = previous();
         auto right = unary();

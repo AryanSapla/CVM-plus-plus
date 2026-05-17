@@ -106,12 +106,13 @@ std::string executeSource(const std::string& source, const std::string& input = 
 }
 
 void testLexerKeywords() {
-    std::vector<Token> tokens = lexSource("let x = 1; int y = 2; long int z = 3; print z;");
+    std::vector<Token> tokens = lexSource("let x = 1; int y = 2; long int z = 3; bool ok = true; print z;");
 
     expect(tokens[0].type == TokenType::Let, "Expected let token.");
     expect(tokens[5].type == TokenType::IntKeyword, "Expected int keyword token.");
     expect(tokens[10].type == TokenType::LongKeyword, "Expected long keyword token.");
     expect(tokens[11].type == TokenType::IntKeyword, "Expected trailing int keyword token.");
+    expect(tokens[16].type == TokenType::BoolKeyword, "Expected bool keyword token.");
 }
 
 void testComments() {
@@ -137,6 +138,12 @@ void testTypedDeclarations() {
     expect(executeSource("long x = 2147483648; print x;") == "2147483648\n", "long declaration failed.");
     expect(executeSource("long int x = 2147483648; print x;") == "2147483648\n",
            "long int declaration failed.");
+    expect(executeSource("bool flag = true; print flag;") == "1\n", "bool declaration failed.");
+    expect(executeSource("bool flag = false; print flag;") == "0\n", "bool false declaration failed.");
+    expect(executeSource("bool flag = 42; print flag;") == "1\n", "bool numeric conversion failed.");
+    expect(executeSource("bool flag = 0; print flag;") == "0\n", "bool zero conversion failed.");
+    expect(executeSource("bool flag = false; flag = 9; print flag;") == "1\n", "bool assignment conversion failed.");
+    expect(executeSource("int x = true + true; print x;") == "2\n", "bool arithmetic promotion failed.");
 }
 
 void testNegativeNumbers() {
@@ -166,6 +173,14 @@ void testControlFlowAndInput() {
         "}";
 
     expect(executeSource(source, "2\n") == "input> 0\n1\n1\n", "Control flow or input failed.");
+
+    expect(executeSource("bool ready = true; bool done = false; print !done && ready; print done || ready;") ==
+               "1\n1\n",
+           "C++-style boolean operators failed.");
+    expect(executeSource("bool ready = false; print ready && (10 / 0);") == "0\n",
+           "Short-circuit && failed.");
+    expect(executeSource("bool ready = true; print ready || (10 / 0);") == "1\n",
+           "Short-circuit || failed.");
 }
 
 void testRuntimeFailures() {

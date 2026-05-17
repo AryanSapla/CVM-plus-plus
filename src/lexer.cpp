@@ -78,7 +78,25 @@ std::vector<Token> Lexer::tokenize() {
                     advance();
                     tokens.push_back(makeToken(TokenType::NotEqual, "!="));
                 } else {
-                    throw LexerError("Unexpected character '!'. Did you mean '!='?", line, "!");
+                    tokens.push_back(makeToken(TokenType::Bang, "!"));
+                }
+                break;
+
+            case '&':
+                if (!isAtEnd() && peek() == '&') {
+                    advance();
+                    tokens.push_back(makeToken(TokenType::AndAnd, "&&"));
+                } else {
+                    throw LexerError("Unexpected character '&'. Did you mean '&&'?", line, "&");
+                }
+                break;
+
+            case '|':
+                if (!isAtEnd() && peek() == '|') {
+                    advance();
+                    tokens.push_back(makeToken(TokenType::OrOr, "||"));
+                } else {
+                    throw LexerError("Unexpected character '|'. Did you mean '||'?", line, "|");
                 }
                 break;
 
@@ -195,6 +213,7 @@ Token Lexer::identifier() {
     if (text == "let")   return makeToken(TokenType::Let,         text);
     if (text == "int")   return makeToken(TokenType::IntKeyword,  text);
     if (text == "long")  return makeToken(TokenType::LongKeyword, text);
+    if (text == "bool")  return makeToken(TokenType::BoolKeyword, text);
     if (text == "print") return makeToken(TokenType::Print,       text);
     if (text == "input") return makeToken(TokenType::Input,       text);
     if (text == "if")    return makeToken(TokenType::If,          text);
