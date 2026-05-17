@@ -112,6 +112,13 @@ void testNegativeNumbers() {
     expect(executeSource("print -(2 + 3);") == "-5\n", "Unary minus execution failed.");
 }
 
+void testPowerOperator() {
+    expect(executeSource("print 2 ^ 3;") == "8\n", "Basic power execution failed.");
+    expect(executeSource("print 2 ^ 3 ^ 2;") == "512\n", "Power should be right-associative.");
+    expect(executeSource("print 2 * 3 ^ 2;") == "18\n", "Power precedence over multiply failed.");
+    expect(executeSource("print -2 ^ 2;") == "-4\n", "Unary minus with power precedence failed.");
+}
+
 void testControlFlowAndInput() {
     const std::string source =
         "let limit = input; "
@@ -148,6 +155,14 @@ void testRuntimeFailures() {
 
     expectRuntimeError("Expected integer input", 1, "input", []() {
         executeSource("let x = input; print x;", "hello\n");
+    });
+
+    expectRuntimeError("Integer overflow during multiplication", 1, "2147483648^3", []() {
+        executeSource("print 2147483648 ^ 3;");
+    });
+
+    expectRuntimeError("Negative exponent is not supported", 1, "2^-1", []() {
+        executeSource("print 2 ^ -1;");
     });
 }
 
@@ -200,6 +215,7 @@ int main() {
         testLexerKeywords();
         testTypedDeclarations();
         testNegativeNumbers();
+        testPowerOperator();
         testControlFlowAndInput();
         testRuntimeFailures();
         testLexerAndParseFailures();

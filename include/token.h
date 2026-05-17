@@ -18,6 +18,7 @@ enum class TokenType {
     False,
     Plus,
     Minus,
+    Caret,
     Star,
     Slash,
     Equal,
@@ -58,6 +59,7 @@ inline const char* tokenTypeToString(TokenType type) {
         case TokenType::False:        return "False";
         case TokenType::Plus:         return "Plus";
         case TokenType::Minus:        return "Minus";
+        case TokenType::Caret:        return "Caret";
         case TokenType::Star:         return "Star";
         case TokenType::Slash:        return "Slash";
         case TokenType::Equal:        return "Equal";

@@ -28,6 +28,7 @@ enum class OpCode {
     StoreVar,
     Add,
     Subtract,
+    Power,
     Multiply,
     Divide,
     Modulo,
@@ -66,6 +67,7 @@ inline const char* opcodeToString(OpCode opcode) {
         case OpCode::StoreVar:     return "StoreVar";
         case OpCode::Add:          return "Add";
         case OpCode::Subtract:     return "Subtract";
+        case OpCode::Power:        return "Power";
         case OpCode::Multiply:     return "Multiply";
         case OpCode::Divide:       return "Divide";
         case OpCode::Modulo:       return "Modulo";

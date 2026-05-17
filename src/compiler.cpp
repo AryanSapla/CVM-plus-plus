@@ -131,6 +131,7 @@ void Compiler::compileExpression(const Expr* expr) {
         const std::string& op = binaryExpr->op;
         if      (op == "+")   emit(OpCode::Add);
         else if (op == "-")   emit(OpCode::Subtract);
+        else if (op == "^")   emit(OpCode::Power);
         else if (op == "*")   emit(OpCode::Multiply);
         else if (op == "/")   emit(OpCode::Divide);
         else if (op == "%")   emit(OpCode::Modulo);
