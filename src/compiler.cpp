@@ -55,7 +55,11 @@ void Compiler::compileStatement(const Stmt* stmt) {
 
     if (const auto* letStmt = dynamic_cast<const LetStmt*>(stmt)) {
         compileExpression(letStmt->value.get());
-        emit(OpCode::StoreVar, letStmt->name);
+        if (letStmt->declaredType == ValueType::Long) {
+            emit(OpCode::DeclareLong, letStmt->name);
+        } else {
+            emit(OpCode::DeclareInt, letStmt->name);
+        }
         return;
     }
 

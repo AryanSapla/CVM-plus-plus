@@ -7,6 +7,8 @@ enum class TokenType {
     Number,
     Identifier,
     Let,
+    IntKeyword,
+    LongKeyword,
     Print,
     Input,
     If,
@@ -45,6 +47,8 @@ inline const char* tokenTypeToString(TokenType type) {
         case TokenType::Number:       return "Number";
         case TokenType::Identifier:   return "Identifier";
         case TokenType::Let:          return "Let";
+        case TokenType::IntKeyword:   return "IntKeyword";
+        case TokenType::LongKeyword:  return "LongKeyword";
         case TokenType::Print:        return "Print";
         case TokenType::Input:        return "Input";
         case TokenType::If:           return "If";

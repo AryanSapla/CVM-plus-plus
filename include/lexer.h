@@ -15,12 +15,14 @@ struct LexerError : std::runtime_error {
     int line;
     std::string header;   // e.g. "[Lexer Error] [Line 3]"
     std::string detail;   // e.g. "Unexpected character '@'"
+    std::string token;
 
-    explicit LexerError(const std::string& detail, int line)
+    explicit LexerError(const std::string& detail, int line, std::string token = "")
         : std::runtime_error("[Lexer Error] [Line " + std::to_string(line) + "]:\n" + detail),
           line(line),
           header("[Lexer Error] [Line " + std::to_string(line) + "]"),
-          detail(detail) {}
+          detail(detail),
+          token(std::move(token)) {}
 };
 
 class Lexer {

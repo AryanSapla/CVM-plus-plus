@@ -6,6 +6,8 @@
 #include <utility>
 #include <vector>
 
+#include "opcode.h"
+
 struct Expr {
     int line = 0;
     virtual ~Expr() = default;
@@ -82,14 +84,22 @@ struct Stmt {
 };
 
 struct LetStmt : Stmt {
+    ValueType declaredType;
+    std::string keywordText;
     std::string name;
     std::unique_ptr<Expr> value;
 
-    LetStmt(std::string name, std::unique_ptr<Expr> value)
-        : name(std::move(name)), value(std::move(value)) {}
+    LetStmt(ValueType declaredType,
+            std::string keywordText,
+            std::string name,
+            std::unique_ptr<Expr> value)
+        : declaredType(declaredType),
+          keywordText(std::move(keywordText)),
+          name(std::move(name)),
+          value(std::move(value)) {}
 
     std::string toString() const override {
-        return "let " + name + " = " + value->toString();
+        return keywordText + " " + name + " = " + value->toString();
     }
 };
 
