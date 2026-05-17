@@ -26,21 +26,6 @@ struct RuntimeError : std::runtime_error {
           token(token) {}
 };
 
-// ─── Type Mismatch Error ──────────────────────────────────────────────────────
-// Thrown for input that is not an integer.
-// Format:  [Type Mismatch Error]:\n<message>
-struct TypeMismatchError : std::runtime_error {
-    int         line;
-    std::string header;
-    std::string detail;
-
-    TypeMismatchError(const std::string& detail, int line)
-        : std::runtime_error("[Type Mismatch Error] [Line " + std::to_string(line) + "]:\n" + detail),
-          line(line),
-          header("[Type Mismatch Error] [Line " + std::to_string(line) + "]"),
-          detail(detail) {}
-};
-
 // ─── VM Error ─────────────────────────────────────────────────────────────────
 // Thrown for internal VM faults: stack underflow, unknown opcode.
 // Format:  [VM Error]:\n<message>
@@ -63,11 +48,21 @@ public:
                  std::ostream& output);
 
 private:
-    void       push(long long value);
-    long long  pop();
+    struct TypedValue {
+        long long value;
+        ValueType type;
+    };
 
-    std::vector<long long>                   stack;
-    std::unordered_map<std::string, long long> variables;
+    struct VariableValue {
+        long long value;
+        ValueType type;
+    };
+
+    void       push(long long value, ValueType type);
+    TypedValue pop();
+
+    std::vector<TypedValue>                          stack;
+    std::unordered_map<std::string, VariableValue>  variables;
 };
 
 #endif

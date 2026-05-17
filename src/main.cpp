@@ -196,7 +196,7 @@ int main(int argc, char* argv[]) {
         Lexer lexer(source);
         tokens = lexer.tokenize();
     } catch (const LexerError& e) {
-        printError(e.header, e.detail, e.line, source);
+        printError(e.header, e.detail, e.line, source, e.token);
         return 1;
     }
 
@@ -211,11 +211,8 @@ int main(int argc, char* argv[]) {
     try {
         Parser parser(tokens);
         statements = parser.parse();
-    } catch (const SemanticError& e) {
-        printError(e.header, e.detail, e.line, source, e.token);
-        return 1;
     } catch (const ParseError& e) {
-        printError(e.header, e.detail, e.line, source);
+        printError(e.header, e.detail, e.line, source, e.token);
         return 1;
     }
 
@@ -251,10 +248,6 @@ int main(int argc, char* argv[]) {
     try {
         VM vm;
         vm.execute(bytecode, source, std::cin, std::cout);
-    } catch (const TypeMismatchError& e) {
-        if (debugMode) std::cout << '\n';
-        printError(e.header, e.detail, e.line, source);
-        return 1;
     } catch (const VMError& e) {
         if (debugMode) std::cout << '\n';
         std::cerr << "\033[1;31m" << e.header << ":\033[0m\n"

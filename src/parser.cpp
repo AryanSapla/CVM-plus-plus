@@ -2,8 +2,6 @@
 
 Parser::Parser(const std::vector<Token>& tokens) : tokens(tokens), current(0) {}
 
-// ─── Public ──────────────────────────────────────────────────────────────────
-
 std::vector<std::unique_ptr<Stmt>> Parser::parse() {
     errorMessage.clear();
     std::vector<std::unique_ptr<Stmt>> statements;
@@ -12,9 +10,6 @@ std::vector<std::unique_ptr<Stmt>> Parser::parse() {
         statements.push_back(statement());
     }
 
-    // Semantic analysis pass — after full parse succeeds
-    semanticCheck(statements);
-
     return statements;
 }
 
@@ -22,31 +17,72 @@ const std::string& Parser::getErrorMessage() const {
     return errorMessage;
 }
 
-// ─── Statements ──────────────────────────────────────────────────────────────
-
 std::unique_ptr<Stmt> Parser::statement() {
     int stmtLine = peek().line;
 
-    if (match(TokenType::If))        return ifStatement(stmtLine);
-    if (match(TokenType::While))     return whileStatement(stmtLine);
-    if (match(TokenType::LeftBrace)) return blockStatement(stmtLine);
-    if (match(TokenType::Let))       return letStatement(stmtLine);
-    if (match(TokenType::Print))     return printStatement(stmtLine);
+    if (match(TokenType::If)) {
+        return ifStatement(stmtLine);
+    }
 
-    if (check(TokenType::Identifier) && checkNext(TokenType::Equal))
+    if (match(TokenType::While)) {
+        return whileStatement(stmtLine);
+    }
+
+    if (match(TokenType::LeftBrace)) {
+        return blockStatement(stmtLine);
+    }
+
+    if (match(TokenType::Let)) {
+        return declarationStatement(stmtLine, ValueType::Int, "let");
+    }
+
+    if (match(TokenType::IntKeyword)) {
+        return declarationStatement(stmtLine, ValueType::Int, "int");
+    }
+
+    if (match(TokenType::LongKeyword)) {
+        std::string keywordText = "long";
+        if (match(TokenType::IntKeyword)) {
+            keywordText = "long int";
+        }
+        return declarationStatement(stmtLine, ValueType::Long, keywordText);
+    }
+
+    if (match(TokenType::Print)) {
+        return printStatement(stmtLine);
+    }
+
+    if (check(TokenType::Identifier) && checkNext(TokenType::Equal)) {
         return assignmentStatement(stmtLine);
+    }
 
-    // Bare identifier not followed by '=' — unknown keyword/identifier used as statement.
-    // Raise as SemanticError directly (better category than ParseError).
     if (check(TokenType::Identifier)) {
-        std::string name = peek().lexeme;
-        advance(); // consume it so we can report properly
-        throw SemanticError(
-            "Unknown keyword or identifier '" + name + "'",
-            stmtLine, name);
+        parseError("Unexpected identifier '" + peek().lexeme + "'", peek().line, peek().lexeme);
     }
 
     return expressionStatement(stmtLine);
+}
+
+std::unique_ptr<Stmt> Parser::declarationStatement(int stmtLine,
+                                                   ValueType declaredType,
+                                                   const std::string& keywordText) {
+    consume(TokenType::Identifier, "Expected variable name after '" + keywordText + "'");
+    Token nameToken = previous();
+
+    consume(TokenType::Equal, "Expected '=' after variable name");
+
+    std::unique_ptr<Expr> value = expression();
+
+    if (!check(TokenType::Semicolon)) {
+        parseError("Expected ';' after variable declaration. Found " + describeCurrentToken(),
+                   peek().line,
+                   peek().lexeme);
+    }
+    consume(TokenType::Semicolon, "Expected ';' after variable declaration");
+
+    auto node = std::make_unique<LetStmt>(declaredType, keywordText, nameToken.lexeme, std::move(value));
+    node->line = stmtLine;
+    return node;
 }
 
 std::unique_ptr<Stmt> Parser::blockStatement(int stmtLine) {
@@ -57,7 +93,7 @@ std::unique_ptr<Stmt> Parser::blockStatement(int stmtLine) {
     }
 
     if (isAtEnd()) {
-        parseError("Expected '}' before end of file", stmtLine);
+        parseError("Expected '}'", previous().line, previous().lexeme);
     }
 
     consume(TokenType::RightBrace, "Expected '}' after block");
@@ -70,8 +106,9 @@ std::unique_ptr<Stmt> Parser::blockStatement(int stmtLine) {
 std::unique_ptr<Stmt> Parser::ifStatement(int stmtLine) {
     consume(TokenType::LeftParen, "Expected '(' after 'if'");
 
-    if (check(TokenType::RightParen))
-        parseError("Expected expression inside condition", stmtLine);
+    if (check(TokenType::RightParen)) {
+        parseError("Expected expression inside condition", peek().line, peek().lexeme);
+    }
 
     std::unique_ptr<Expr> condition = expression();
     consume(TokenType::RightParen, "Expected ')' after if condition");
@@ -79,11 +116,11 @@ std::unique_ptr<Stmt> Parser::ifStatement(int stmtLine) {
     std::unique_ptr<Stmt> thenBranch = statement();
 
     std::unique_ptr<Stmt> elseBranch;
-    if (match(TokenType::Else))
+    if (match(TokenType::Else)) {
         elseBranch = statement();
+    }
 
-    auto node = std::make_unique<IfStmt>(
-        std::move(condition), std::move(thenBranch), std::move(elseBranch));
+    auto node = std::make_unique<IfStmt>(std::move(condition), std::move(thenBranch), std::move(elseBranch));
     node->line = stmtLine;
     return node;
 }
@@ -91,8 +128,9 @@ std::unique_ptr<Stmt> Parser::ifStatement(int stmtLine) {
 std::unique_ptr<Stmt> Parser::whileStatement(int stmtLine) {
     consume(TokenType::LeftParen, "Expected '(' after 'while'");
 
-    if (check(TokenType::RightParen))
-        parseError("Expected expression inside condition", stmtLine);
+    if (check(TokenType::RightParen)) {
+        parseError("Expected expression inside condition", peek().line, peek().lexeme);
+    }
 
     std::unique_ptr<Expr> condition = expression();
     consume(TokenType::RightParen, "Expected ')' after while condition");
@@ -104,33 +142,22 @@ std::unique_ptr<Stmt> Parser::whileStatement(int stmtLine) {
     return node;
 }
 
-std::unique_ptr<Stmt> Parser::letStatement(int stmtLine) {
-    consume(TokenType::Identifier, "Expected variable name after 'let'");
-    Token nameToken = previous();
-
-    consume(TokenType::Equal, "Expected '=' after variable name");
-
-    std::unique_ptr<Expr> value = expression();
-
-    if (!check(TokenType::Semicolon)) {
-        std::string found = "Found " + describeCurrentToken();
-        parseError("Expected ';' after variable declaration. " + found, stmtLine);
-    }
-    consume(TokenType::Semicolon, "Expected ';' after variable declaration");
-
-    auto node = std::make_unique<LetStmt>(nameToken.lexeme, std::move(value));
-    node->line = stmtLine;
-    return node;
-}
-
 std::unique_ptr<Stmt> Parser::printStatement(int stmtLine) {
-    if (check(TokenType::Semicolon) || isAtEnd())
-        parseError("Expected expression after 'print'", stmtLine);
+    if (check(TokenType::Semicolon) || isAtEnd()) {
+        parseError("Expected expression after 'print'", peek().line, peek().lexeme);
+    }
 
-    if (check(TokenType::Identifier) && checkNext(TokenType::Equal))
-        parseError("Invalid assignment inside print statement", stmtLine);
+    if (check(TokenType::Identifier) && checkNext(TokenType::Equal)) {
+        parseError("Invalid assignment inside print statement", peek().line, peek().lexeme);
+    }
 
     std::unique_ptr<Expr> value = expression();
+
+    if (check(TokenType::Equal)) {
+        std::string underline = value ? value->toString() : peek().lexeme;
+        parseError("Invalid assignment inside print statement", peek().line, underline);
+    }
+
     consume(TokenType::Semicolon, "Expected ';' after print value");
 
     auto node = std::make_unique<PrintStmt>(std::move(value));
@@ -154,6 +181,12 @@ std::unique_ptr<Stmt> Parser::assignmentStatement(int stmtLine) {
 
 std::unique_ptr<Stmt> Parser::expressionStatement(int stmtLine) {
     std::unique_ptr<Expr> expr = expression();
+
+    if (check(TokenType::Equal)) {
+        std::string underline = expr ? expr->toString() : previous().lexeme;
+        parseError("Invalid assignment target", peek().line, underline);
+    }
+
     consume(TokenType::Semicolon, "Expected ';' after expression");
 
     auto node = std::make_unique<ExprStmt>(std::move(expr));
@@ -161,15 +194,13 @@ std::unique_ptr<Stmt> Parser::expressionStatement(int stmtLine) {
     return node;
 }
 
-// ─── Expressions ─────────────────────────────────────────────────────────────
-
 std::unique_ptr<Expr> Parser::expression() {
     return logicalOr();
 }
 
 std::unique_ptr<Expr> Parser::logicalOr() {
     auto expr = logicalAnd();
-    // 'or' is represented as an identifier token in the lexer
+
     while (check(TokenType::Identifier) && peek().lexeme == "or") {
         advance();
         Token op = previous();
@@ -178,11 +209,13 @@ std::unique_ptr<Expr> Parser::logicalOr() {
         node->line = op.line;
         expr = std::move(node);
     }
+
     return expr;
 }
 
 std::unique_ptr<Expr> Parser::logicalAnd() {
     auto expr = equality();
+
     while (check(TokenType::Identifier) && peek().lexeme == "and") {
         advance();
         Token op = previous();
@@ -191,6 +224,7 @@ std::unique_ptr<Expr> Parser::logicalAnd() {
         node->line = op.line;
         expr = std::move(node);
     }
+
     return expr;
 }
 
@@ -259,7 +293,7 @@ std::unique_ptr<Expr> Parser::unary() {
         node->line = op.line;
         return node;
     }
-    // 'not' keyword
+
     if (check(TokenType::Identifier) && peek().lexeme == "not") {
         Token op = advance();
         auto right = unary();
@@ -267,6 +301,7 @@ std::unique_ptr<Expr> Parser::unary() {
         node->line = op.line;
         return node;
     }
+
     return primary();
 }
 
@@ -276,21 +311,25 @@ std::unique_ptr<Expr> Parser::primary() {
         node->line = previous().line;
         return node;
     }
+
     if (match(TokenType::True)) {
         auto node = std::make_unique<BoolExpr>(true);
         node->line = previous().line;
         return node;
     }
+
     if (match(TokenType::False)) {
         auto node = std::make_unique<BoolExpr>(false);
         node->line = previous().line;
         return node;
     }
+
     if (match(TokenType::Input)) {
         auto node = std::make_unique<InputExpr>();
         node->line = previous().line;
         return node;
     }
+
     if (match(TokenType::Identifier)) {
         auto node = std::make_unique<IdentifierExpr>(previous().lexeme);
         node->line = previous().line;
@@ -304,133 +343,52 @@ std::unique_ptr<Expr> Parser::primary() {
     }
 
     if (check(TokenType::Equal)) {
-        parseError("Invalid assignment target. Left side of '=' must be a variable name");
+        parseError("Invalid assignment target", peek().line, peek().lexeme);
     }
 
-    parseError("Unexpected token " + describeCurrentToken() + " in expression");
+    parseError("Unexpected token " + describeCurrentToken() + " in expression", peek().line, peek().lexeme);
 }
-
-// ─── Semantic Analysis ────────────────────────────────────────────────────────
-
-void Parser::semanticCheck(const std::vector<std::unique_ptr<Stmt>>& stmts) {
-    std::unordered_set<std::string> declared;
-    std::vector<std::string> declOrder;
-    for (const auto& stmt : stmts)
-        checkStmt(stmt.get(), declared, declOrder);
-}
-
-void Parser::checkStmt(const Stmt* stmt,
-                       std::unordered_set<std::string>& declared,
-                       std::vector<std::string>& declOrder) {
-    if (!stmt) return;
-
-    if (const auto* let = dynamic_cast<const LetStmt*>(stmt)) {
-        checkExpr(let->value.get(), declared);
-        if (declared.count(let->name)) {
-            throw SemanticError(
-                "Variable '" + let->name + "' already declared",
-                let->line, let->name);
-        }
-        declared.insert(let->name);
-        declOrder.push_back(let->name);
-        return;
-    }
-
-    if (const auto* assign = dynamic_cast<const AssignStmt*>(stmt)) {
-        checkExpr(assign->value.get(), declared);
-        // Assignment to undeclared variable is a semantic error
-        if (!declared.count(assign->name)) {
-            throw SemanticError(
-                "Undefined variable '" + assign->name + "'",
-                assign->line, assign->name);
-        }
-        return;
-    }
-
-    if (const auto* print = dynamic_cast<const PrintStmt*>(stmt)) {
-        checkExpr(print->value.get(), declared);
-        return;
-    }
-
-    if (const auto* exprS = dynamic_cast<const ExprStmt*>(stmt)) {
-        checkExpr(exprS->expression.get(), declared);
-        return;
-    }
-
-    if (const auto* block = dynamic_cast<const BlockStmt*>(stmt)) {
-        // Blocks share outer scope (no new scope for simplicity)
-        for (const auto& s : block->statements)
-            checkStmt(s.get(), declared, declOrder);
-        return;
-    }
-
-    if (const auto* ifS = dynamic_cast<const IfStmt*>(stmt)) {
-        checkExpr(ifS->condition.get(), declared);
-        checkStmt(ifS->thenBranch.get(), declared, declOrder);
-        if (ifS->elseBranch)
-            checkStmt(ifS->elseBranch.get(), declared, declOrder);
-        return;
-    }
-
-    if (const auto* whileS = dynamic_cast<const WhileStmt*>(stmt)) {
-        checkExpr(whileS->condition.get(), declared);
-        checkStmt(whileS->body.get(), declared, declOrder);
-        return;
-    }
-}
-
-void Parser::checkExpr(const Expr* expr,
-                       const std::unordered_set<std::string>& declared) {
-    if (!expr) return;
-
-    if (const auto* id = dynamic_cast<const IdentifierExpr*>(expr)) {
-        if (!declared.count(id->name)) {
-            throw SemanticError(
-                "Undefined variable '" + id->name + "'",
-                id->line, id->name);
-        }
-        return;
-    }
-
-    if (const auto* bin = dynamic_cast<const BinaryExpr*>(expr)) {
-        checkExpr(bin->left.get(), declared);
-        checkExpr(bin->right.get(), declared);
-        return;
-    }
-
-    if (const auto* un = dynamic_cast<const UnaryExpr*>(expr)) {
-        checkExpr(un->right.get(), declared);
-        return;
-    }
-
-    // NumberExpr, BoolExpr, InputExpr — no checks needed
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 bool Parser::match(TokenType type) {
-    if (check(type)) { advance(); return true; }
+    if (check(type)) {
+        advance();
+        return true;
+    }
+
     return false;
 }
 
 void Parser::consume(TokenType type, const std::string& message) {
-    if (match(type)) return;
-    std::string found = "Found " + describeCurrentToken();
-    parseError(message + ". " + found);
+    if (match(type)) {
+        return;
+    }
+
+    int errorLine = isAtEnd() ? previous().line : peek().line;
+    std::string token = isAtEnd() ? previous().lexeme : peek().lexeme;
+    parseError(message + ". Found " + describeCurrentToken(), errorLine, token);
 }
 
 bool Parser::check(TokenType type) const {
-    if (isAtEnd()) return type == TokenType::EndOfFile;
+    if (isAtEnd()) {
+        return type == TokenType::EndOfFile;
+    }
+
     return peek().type == type;
 }
 
 bool Parser::checkNext(TokenType type) const {
-    if (current + 1 >= tokens.size()) return false;
+    if (current + 1 >= tokens.size()) {
+        return false;
+    }
+
     return tokens[current + 1].type == type;
 }
 
 const Token& Parser::advance() {
-    if (!isAtEnd()) current++;
+    if (!isAtEnd()) {
+        current++;
+    }
+
     return previous();
 }
 
@@ -446,19 +404,27 @@ bool Parser::isAtEnd() const {
     return peek().type == TokenType::EndOfFile;
 }
 
-void Parser::parseError(const std::string& message, int line) const {
+void Parser::parseError(const std::string& message, int line, const std::string& token) const {
     const_cast<Parser*>(this)->errorMessage =
         "[Parse Error] [Line " + std::to_string(line) + "]:\n" + message;
-    throw ParseError(message, line);
+    throw ParseError(message, line, token);
 }
 
 void Parser::parseError(const std::string& message) const {
-    parseError(message, peek().line);
+    int errorLine = isAtEnd() ? previous().line : peek().line;
+    std::string token = isAtEnd() ? previous().lexeme : peek().lexeme;
+    parseError(message, errorLine, token);
 }
 
 std::string Parser::describeToken(const Token& token) const {
-    if (token.type == TokenType::EndOfFile) return "end of file";
-    if (token.lexeme.empty()) return std::string("token ") + tokenTypeToString(token.type);
+    if (token.type == TokenType::EndOfFile) {
+        return "end of file";
+    }
+
+    if (token.lexeme.empty()) {
+        return std::string("token ") + tokenTypeToString(token.type);
+    }
+
     return "'" + token.lexeme + "'";
 }
 

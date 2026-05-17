@@ -68,7 +68,7 @@ std::vector<Token> Lexer::tokenize() {
                     advance();
                     tokens.push_back(makeToken(TokenType::NotEqual, "!="));
                 } else {
-                    throw LexerError("Unexpected character '!'. Did you mean '!='?", line);
+                    throw LexerError("Unexpected character '!'. Did you mean '!='?", line, "!");
                 }
                 break;
 
@@ -83,7 +83,7 @@ std::vector<Token> Lexer::tokenize() {
 
             default: {
                 std::string msg = "Unexpected character '" + std::string(1, c) + "'";
-                throw LexerError(msg, line);
+                throw LexerError(msg, line, std::string(1, c));
             }
         }
     }
@@ -148,14 +148,16 @@ Token Lexer::identifier() {
 
     std::string text = source.substr(start, current - start);
 
-    if (text == "let")   return makeToken(TokenType::Let,   text);
-    if (text == "print") return makeToken(TokenType::Print, text);
-    if (text == "input") return makeToken(TokenType::Input, text);
-    if (text == "if")    return makeToken(TokenType::If,    text);
-    if (text == "else")  return makeToken(TokenType::Else,  text);
-    if (text == "while") return makeToken(TokenType::While, text);
-    if (text == "true")  return makeToken(TokenType::True,  text);
-    if (text == "false") return makeToken(TokenType::False, text);
+    if (text == "let")   return makeToken(TokenType::Let,         text);
+    if (text == "int")   return makeToken(TokenType::IntKeyword,  text);
+    if (text == "long")  return makeToken(TokenType::LongKeyword, text);
+    if (text == "print") return makeToken(TokenType::Print,       text);
+    if (text == "input") return makeToken(TokenType::Input,       text);
+    if (text == "if")    return makeToken(TokenType::If,          text);
+    if (text == "else")  return makeToken(TokenType::Else,        text);
+    if (text == "while") return makeToken(TokenType::While,       text);
+    if (text == "true")  return makeToken(TokenType::True,        text);
+    if (text == "false") return makeToken(TokenType::False,       text);
     if (text == "and")   return makeToken(TokenType::Identifier, text); // reserved but handled in parser
     if (text == "or")    return makeToken(TokenType::Identifier, text);
     if (text == "not")   return makeToken(TokenType::Identifier, text);

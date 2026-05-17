@@ -5,7 +5,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "ast.h"
@@ -18,29 +17,12 @@ struct ParseError : std::runtime_error {
     int line;
     std::string header;
     std::string detail;
+    std::string token;
 
-    explicit ParseError(const std::string& detail, int line)
+    explicit ParseError(const std::string& detail, int line, const std::string& token = "")
         : std::runtime_error("[Parse Error] [Line " + std::to_string(line) + "]:\n" + detail),
           line(line),
           header("[Parse Error] [Line " + std::to_string(line) + "]"),
-          detail(detail) {}
-};
-
-// ─── Semantic Error ───────────────────────────────────────────────────────────
-// Thrown after parsing for semantic violations:
-//   - Unknown keyword/identifier used as statement
-//   - Undefined variable reference
-//   - Variable redeclaration
-struct SemanticError : std::runtime_error {
-    int         line;
-    std::string header;
-    std::string detail;
-    std::string token;  // token/word to underline; "" = whole line
-
-    SemanticError(const std::string& detail, int line, const std::string& token = "")
-        : std::runtime_error("[Semantic Error] [Line " + std::to_string(line) + "]:\n" + detail),
-          line(line),
-          header("[Semantic Error] [Line " + std::to_string(line) + "]"),
           detail(detail),
           token(token) {}
 };
@@ -57,10 +39,10 @@ public:
 private:
     // ── Statement parsers ────────────────────────────────────────────────────
     std::unique_ptr<Stmt> statement();
+    std::unique_ptr<Stmt> declarationStatement(int stmtLine, ValueType declaredType, const std::string& keywordText);
     std::unique_ptr<Stmt> blockStatement(int stmtLine);
     std::unique_ptr<Stmt> ifStatement(int stmtLine);
     std::unique_ptr<Stmt> whileStatement(int stmtLine);
-    std::unique_ptr<Stmt> letStatement(int stmtLine);
     std::unique_ptr<Stmt> printStatement(int stmtLine);
     std::unique_ptr<Stmt> assignmentStatement(int stmtLine);
     std::unique_ptr<Stmt> expressionStatement(int stmtLine);
@@ -86,20 +68,11 @@ private:
     const Token& previous() const;
     bool         isAtEnd() const;
 
-    [[noreturn]] void parseError(const std::string& message, int line) const;
+    [[noreturn]] void parseError(const std::string& message, int line, const std::string& token = "") const;
     [[noreturn]] void parseError(const std::string& message) const;
 
     std::string describeToken(const Token& token) const;
     std::string describeCurrentToken() const;
-
-    // ── Semantic helpers ─────────────────────────────────────────────────────
-    // Called after full parse to check semantics.
-    void semanticCheck(const std::vector<std::unique_ptr<Stmt>>& stmts);
-    void checkStmt(const Stmt* stmt,
-                   std::unordered_set<std::string>& declared,
-                   std::vector<std::string>& declOrder);
-    void checkExpr(const Expr* expr,
-                   const std::unordered_set<std::string>& declared);
 
     const std::vector<Token>& tokens;
     std::size_t current;

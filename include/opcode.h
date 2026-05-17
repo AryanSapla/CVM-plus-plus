@@ -4,10 +4,27 @@
 #include <string>
 #include <utility>
 
+enum class ValueType {
+    Unknown,
+    Int,
+    Long
+};
+
+inline const char* valueTypeToString(ValueType type) {
+    switch (type) {
+        case ValueType::Int: return "int";
+        case ValueType::Long: return "long";
+        case ValueType::Unknown: return "unknown";
+        default: return "unknown";
+    }
+}
+
 enum class OpCode {
-    PushInt,      // operand = decimal integer literal (may be long long)
+    PushInt,      // operand = decimal integer literal text
     Input,
     LoadVar,
+    DeclareInt,
+    DeclareLong,
     StoreVar,
     Add,
     Subtract,
@@ -44,6 +61,8 @@ inline const char* opcodeToString(OpCode opcode) {
         case OpCode::PushInt:      return "PushInt";
         case OpCode::Input:        return "Input";
         case OpCode::LoadVar:      return "LoadVar";
+        case OpCode::DeclareInt:   return "DeclareInt";
+        case OpCode::DeclareLong:  return "DeclareLong";
         case OpCode::StoreVar:     return "StoreVar";
         case OpCode::Add:          return "Add";
         case OpCode::Subtract:     return "Subtract";
