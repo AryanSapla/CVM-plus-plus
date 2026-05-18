@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(CTest)
 
 add_library(cvmpp_core
+    src/bytecode_io.cpp
     src/lexer.cpp
     src/parser.cpp
     src/compiler.cpp

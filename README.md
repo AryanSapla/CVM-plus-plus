@@ -153,11 +153,17 @@ cmake --build .
 ## Run
 
 ```bash
-# Run a script
-./build/cvmpp examples/hello.cvm
+# Run a source file directly (compile + execute)
+./build/cvmpp examples/calculator.cvm
 
-# Debug mode — prints tokens, AST, and bytecode before running
-./build/cvmpp --debug examples/hello.cvm
+# Compile source into a bytecode file only
+./build/cvmpp --compile examples/calculator.cvm
+
+# Run a compiled bytecode file on the VM
+./build/cvmpp --run-bytecode examples/calculator.cvm.bc
+
+# Debug mode — shows AST, bytecode, VM output, and the final VM result
+./build/cvmpp --debug examples/calculator.cvm
 ```
 
 ---

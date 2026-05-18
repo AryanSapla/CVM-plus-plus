@@ -1,6 +1,7 @@
 #ifndef OPCODE_H
 #define OPCODE_H
 
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -140,6 +141,53 @@ inline const char* opcodeToString(OpCode opcode) {
         case OpCode::Halt:            return "Halt";
         default:                      return "Unknown";
     }
+}
+
+inline OpCode opcodeFromString(const std::string& opcode) {
+    if (opcode == "PushBool")        return OpCode::PushBool;
+    if (opcode == "PushInt")         return OpCode::PushInt;
+    if (opcode == "PushLongLong")    return OpCode::PushLongLong;
+    if (opcode == "PushFloat")       return OpCode::PushFloat;
+    if (opcode == "Input")           return OpCode::Input;
+    if (opcode == "LoadVar")         return OpCode::LoadVar;
+    if (opcode == "DeclareBool")     return OpCode::DeclareBool;
+    if (opcode == "DeclareInt")      return OpCode::DeclareInt;
+    if (opcode == "DeclareLongLong") return OpCode::DeclareLongLong;
+    if (opcode == "DeclareFloat")    return OpCode::DeclareFloat;
+    if (opcode == "StoreVar")        return OpCode::StoreVar;
+    if (opcode == "CastToInt")       return OpCode::CastToInt;
+    if (opcode == "CastToLongLong")  return OpCode::CastToLongLong;
+    if (opcode == "CastToFloat")     return OpCode::CastToFloat;
+    if (opcode == "CastToBool")      return OpCode::CastToBool;
+    if (opcode == "Add")             return OpCode::Add;
+    if (opcode == "Subtract")        return OpCode::Subtract;
+    if (opcode == "Multiply")        return OpCode::Multiply;
+    if (opcode == "Divide")          return OpCode::Divide;
+    if (opcode == "Modulo")          return OpCode::Modulo;
+    if (opcode == "Power")           return OpCode::Power;
+    if (opcode == "Equal")           return OpCode::Equal;
+    if (opcode == "NotEqual")        return OpCode::NotEqual;
+    if (opcode == "Less")            return OpCode::Less;
+    if (opcode == "LessEqual")       return OpCode::LessEqual;
+    if (opcode == "Greater")         return OpCode::Greater;
+    if (opcode == "GreaterEqual")    return OpCode::GreaterEqual;
+    if (opcode == "And")             return OpCode::And;
+    if (opcode == "Or")              return OpCode::Or;
+    if (opcode == "Not")             return OpCode::Not;
+    if (opcode == "BitAnd")          return OpCode::BitAnd;
+    if (opcode == "BitOr")           return OpCode::BitOr;
+    if (opcode == "BitXor")          return OpCode::BitXor;
+    if (opcode == "BitNot")          return OpCode::BitNot;
+    if (opcode == "ShiftLeft")       return OpCode::ShiftLeft;
+    if (opcode == "ShiftRight")      return OpCode::ShiftRight;
+    if (opcode == "Jump")            return OpCode::Jump;
+    if (opcode == "JumpIfFalse")     return OpCode::JumpIfFalse;
+    if (opcode == "PushScope")       return OpCode::PushScope;
+    if (opcode == "PopScope")        return OpCode::PopScope;
+    if (opcode == "Print")           return OpCode::Print;
+    if (opcode == "Pop")             return OpCode::Pop;
+    if (opcode == "Halt")            return OpCode::Halt;
+    throw std::runtime_error("Unknown opcode text: " + opcode);
 }
 
 #endif
