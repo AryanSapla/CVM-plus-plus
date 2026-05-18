@@ -12,26 +12,18 @@ std::vector<Token> Lexer::tokenize() {
 
         char c = peek();
 
-        if (c == '/' && peekNext() == '/') {
-            skipLineComment();
-            continue;
-        }
+        // ── Comments ──────────────────────────────────────────────────────────
+        if (c == '/' && peekNext() == '/') { skipLineComment();  continue; }
+        if (c == '#')                      { skipHashComment();   continue; }
+        if (c == '/' && peekNext() == '*') { skipBlockComment(); continue; }
 
-        if (c == '#') {
-            skipHashComment();
-            continue;
-        }
-
-        if (c == '/' && peekNext() == '*') {
-            skipBlockComment();
-            continue;
-        }
-
+        // ── Numbers (integer or float) ────────────────────────────────────────
         if (std::isdigit(static_cast<unsigned char>(c))) {
             tokens.push_back(number());
             continue;
         }
 
+        // ── Identifiers / keywords ────────────────────────────────────────────
         if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
             tokens.push_back(identifier());
             continue;
@@ -40,14 +32,20 @@ std::vector<Token> Lexer::tokenize() {
         c = advance();
 
         switch (c) {
-            case '+': tokens.push_back(makeToken(TokenType::Plus,      "+")); break;
-            case '-': tokens.push_back(makeToken(TokenType::Minus,     "-")); break;
-            case '^':
-                if (!isAtEnd() && peek() == '^') {
+            case '+':
+                if (!isAtEnd() && peek() == '+') {
                     advance();
-                    tokens.push_back(makeToken(TokenType::CaretCaret, "^^"));
+                    tokens.push_back(makeToken(TokenType::PlusPlus,   "++"));
                 } else {
-                    tokens.push_back(makeToken(TokenType::Caret, "^"));
+                    tokens.push_back(makeToken(TokenType::Plus,       "+"));
+                }
+                break;
+            case '-':
+                if (!isAtEnd() && peek() == '-') {
+                    advance();
+                    tokens.push_back(makeToken(TokenType::MinusMinus,  "--"));
+                } else {
+                    tokens.push_back(makeToken(TokenType::Minus,       "-"));
                 }
                 break;
             case '*': tokens.push_back(makeToken(TokenType::Star,      "*")); break;
@@ -57,6 +55,16 @@ std::vector<Token> Lexer::tokenize() {
             case ')': tokens.push_back(makeToken(TokenType::RightParen,")")); break;
             case '{': tokens.push_back(makeToken(TokenType::LeftBrace, "{")); break;
             case '}': tokens.push_back(makeToken(TokenType::RightBrace,"}")); break;
+            case '~': tokens.push_back(makeToken(TokenType::Tilde,     "~")); break;
+
+            case '^':
+                if (!isAtEnd() && peek() == '^') {
+                    advance();
+                    tokens.push_back(makeToken(TokenType::CaretCaret, "^^"));
+                } else {
+                    tokens.push_back(makeToken(TokenType::Caret, "^"));
+                }
+                break;
 
             case '/':
                 tokens.push_back(makeToken(TokenType::Slash, "/"));
@@ -113,10 +121,6 @@ std::vector<Token> Lexer::tokenize() {
                 }
                 break;
 
-            case '~':
-                tokens.push_back(makeToken(TokenType::Tilde, "~"));
-                break;
-
             case '=':
                 if (!isAtEnd() && peek() == '=') {
                     advance();
@@ -137,9 +141,7 @@ std::vector<Token> Lexer::tokenize() {
     return tokens;
 }
 
-char Lexer::advance() {
-    return source[current++];
-}
+char Lexer::advance() { return source[current++]; }
 
 char Lexer::peek() const {
     if (isAtEnd()) return '\0';
@@ -151,72 +153,93 @@ char Lexer::peekNext() const {
     return source[current + 1];
 }
 
-bool Lexer::isAtEnd() const {
-    return current >= source.length();
-}
+bool Lexer::isAtEnd() const { return current >= source.length(); }
 
 void Lexer::skipWhitespace() {
     while (!isAtEnd()) {
         char c = peek();
-        if (c == '\n') {
-            line++;
-            advance();
-        } else if (c == ' ' || c == '\t' || c == '\r') {
-            advance();
-        } else {
-            break;
-        }
+        if      (c == '\n')                        { line++; advance(); }
+        else if (c == ' ' || c == '\t' || c == '\r') { advance(); }
+        else break;
     }
 }
 
 void Lexer::skipLineComment() {
-    advance();
-    advance();
-    while (!isAtEnd() && peek() != '\n') {
-        advance();
-    }
+    advance(); advance();
+    while (!isAtEnd() && peek() != '\n') advance();
 }
 
 void Lexer::skipHashComment() {
     advance();
-    while (!isAtEnd() && peek() != '\n') {
-        advance();
-    }
+    while (!isAtEnd() && peek() != '\n') advance();
 }
 
 void Lexer::skipBlockComment() {
     int startLine = line;
-
-    advance();
-    advance();
+    advance(); advance();  // consume /*
 
     while (!isAtEnd()) {
-        if (peek() == '\n') {
-            line++;
-            advance();
-            continue;
-        }
-
-        if (peek() == '*' && peekNext() == '/') {
-            advance();
-            advance();
-            return;
-        }
-
+        if (peek() == '\n') { line++; advance(); continue; }
+        if (peek() == '*' && peekNext() == '/') { advance(); advance(); return; }
         advance();
     }
-
     throw LexerError("Unterminated block comment", startLine, "/*");
 }
 
+// ─── Number: integer (with optional LL suffix) or float ──────────────────────
+//
+// Recognised forms:
+//   42          → Number  (type determined at VM runtime: Int or LongLong)
+//   42LL        → Number token, immediately followed by LL token
+//   3.14        → Number  (float — contains a dot)
+//   3.14e2      → Number  (scientific float)
+//   .5          → NOT supported (must start with digit)
+
 Token Lexer::number() {
     std::size_t start = current;
-    while (!isAtEnd() && std::isdigit(static_cast<unsigned char>(peek()))) {
-        advance();
+    bool isFloat = false;
+
+    // Integer part
+    while (!isAtEnd() && std::isdigit(static_cast<unsigned char>(peek()))) advance();
+
+    // Optional fractional part
+    if (!isAtEnd() && peek() == '.') {
+        // Make sure it's not '..' or '.identifier' — just consume if next is digit
+        if (current + 1 < source.size() &&
+            std::isdigit(static_cast<unsigned char>(source[current + 1]))) {
+            isFloat = true;
+            advance(); // consume '.'
+            while (!isAtEnd() && std::isdigit(static_cast<unsigned char>(peek()))) advance();
+        }
     }
-    return makeToken(TokenType::Number, source.substr(start, current - start));
+
+    // Optional exponent  (e/E followed by optional sign and digits)
+    if (!isFloat && !isAtEnd() && (peek() == 'e' || peek() == 'E')) {
+        // Only treat as float exponent if next char after e/E is digit or sign+digit
+        std::size_t epos = current;
+        advance(); // consume e/E
+        if (!isAtEnd() && (peek() == '+' || peek() == '-')) advance();
+        if (!isAtEnd() && std::isdigit(static_cast<unsigned char>(peek()))) {
+            isFloat = true;
+            while (!isAtEnd() && std::isdigit(static_cast<unsigned char>(peek()))) advance();
+        } else {
+            // Not a valid exponent; rewind — 'e'/'E' will be picked up as identifier
+            current = epos;
+        }
+    } else if (isFloat && !isAtEnd() && (peek() == 'e' || peek() == 'E')) {
+        advance();
+        if (!isAtEnd() && (peek() == '+' || peek() == '-')) advance();
+        while (!isAtEnd() && std::isdigit(static_cast<unsigned char>(peek()))) advance();
+    }
+
+    std::string text = source.substr(start, current - start);
+    TokenType type = isFloat ? TokenType::Number : TokenType::Number;
+    // We always use Number; the parser/compiler distinguishes float vs int via '.' in lexeme
+
+    return makeToken(type, text);
 }
 
+// ─── Identifier / keyword ────────────────────────────────────────────────────
 Token Lexer::identifier() {
     std::size_t start = current;
     while (!isAtEnd()) {
@@ -227,20 +250,28 @@ Token Lexer::identifier() {
 
     std::string text = source.substr(start, current - start);
 
-    if (text == "let")   return makeToken(TokenType::Let,         text);
-    if (text == "int")   return makeToken(TokenType::IntKeyword,  text);
-    if (text == "long")  return makeToken(TokenType::LongKeyword, text);
-    if (text == "bool")  return makeToken(TokenType::BoolKeyword, text);
-    if (text == "print") return makeToken(TokenType::Print,       text);
-    if (text == "input") return makeToken(TokenType::Input,       text);
-    if (text == "if")    return makeToken(TokenType::If,          text);
-    if (text == "else")  return makeToken(TokenType::Else,        text);
-    if (text == "while") return makeToken(TokenType::While,       text);
-    if (text == "true")  return makeToken(TokenType::True,        text);
-    if (text == "false") return makeToken(TokenType::False,       text);
-    if (text == "and")   return makeToken(TokenType::Identifier, text); // reserved but handled in parser
-    if (text == "or")    return makeToken(TokenType::Identifier, text);
-    if (text == "not")   return makeToken(TokenType::Identifier, text);
+    // Keywords
+    if (text == "let")   return makeToken(TokenType::Let,          text);
+    if (text == "int")   return makeToken(TokenType::IntKeyword,   text);
+    if (text == "long")  return makeToken(TokenType::LongKeyword,  text);
+    if (text == "bool")  return makeToken(TokenType::BoolKeyword,  text);
+    if (text == "float") return makeToken(TokenType::FloatKeyword, text);
+    if (text == "print") return makeToken(TokenType::Print,        text);
+    if (text == "input") return makeToken(TokenType::Input,        text);
+    if (text == "if")    return makeToken(TokenType::If,           text);
+    if (text == "else")  return makeToken(TokenType::Else,         text);
+    if (text == "while") return makeToken(TokenType::While,        text);
+    if (text == "for")   return makeToken(TokenType::For,          text);
+    if (text == "break") return makeToken(TokenType::Break,        text);
+    if (text == "continue") return makeToken(TokenType::Continue,  text);
+    if (text == "true")  return makeToken(TokenType::True,         text);
+    if (text == "false") return makeToken(TokenType::False,        text);
+    // and / or / not are now proper keyword tokens
+    if (text == "and")   return makeToken(TokenType::AndKw,        text);
+    if (text == "or")    return makeToken(TokenType::OrKw,         text);
+    if (text == "not")   return makeToken(TokenType::NotKw,        text);
+    // LL suffix — accept both upper and lower case: 42LL and 42ll
+    if (text == "LL" || text == "ll") return makeToken(TokenType::LL, text);
 
     return makeToken(TokenType::Identifier, text);
 }

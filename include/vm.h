@@ -10,13 +10,11 @@
 #include "opcode.h"
 
 // ─── Runtime Error ────────────────────────────────────────────────────────────
-// Thrown by VM::execute() for arithmetic errors, division by zero, overflow.
-// Format:  [Runtime Error] [Line N]:\n<message>
 struct RuntimeError : std::runtime_error {
     int         line;
     std::string header;
     std::string detail;
-    std::string token;  // specific lexeme to underline; "" = whole line
+    std::string token;
 
     RuntimeError(const std::string& detail, int line, const std::string& token = "")
         : std::runtime_error("[Runtime Error] [Line " + std::to_string(line) + "]:\n" + detail),
@@ -27,8 +25,6 @@ struct RuntimeError : std::runtime_error {
 };
 
 // ─── VM Error ─────────────────────────────────────────────────────────────────
-// Thrown for internal VM faults: stack underflow, unknown opcode.
-// Format:  [VM Error]:\n<message>
 struct VMError : std::runtime_error {
     std::string header;
     std::string detail;
@@ -48,21 +44,35 @@ public:
                  std::ostream& output);
 
 private:
+    // A stack value carries both representations so mixed-type ops need no extra conversion.
     struct TypedValue {
-        long long value;
-        ValueType type;
+        long long ival = 0;
+        double    fval = 0.0;
+        ValueType type = ValueType::Unknown;
+
+        TypedValue() = default;
+        TypedValue(long long v, ValueType t)
+            : ival(v), fval(static_cast<double>(v)), type(t) {}
+        TypedValue(double v, ValueType t)
+            : ival(static_cast<long long>(v)), fval(v), type(t) {}
     };
 
     struct VariableValue {
-        long long value;
-        ValueType type;
+        long long ival = 0;
+        double    fval = 0.0;
+        ValueType type = ValueType::Unknown;
     };
 
     void       push(long long value, ValueType type);
+    void       pushFloat(double value);
     TypedValue pop();
 
-    std::vector<TypedValue>                          stack;
-    std::unordered_map<std::string, VariableValue>  variables;
+    std::vector<TypedValue>                         stack;
+    // Variable storage as a scope stack; innermost scope is at the back.
+    // Each Declare opcode pushes into the current (back) scope.
+    // LoadVar / StoreVar search from back to front.
+    using VarMap = std::unordered_map<std::string, VariableValue>;
+    std::vector<VarMap> scopes;
 };
 
 #endif
