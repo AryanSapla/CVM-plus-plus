@@ -6,7 +6,7 @@
                               ██║     ██║   ██║██╔████╔██║    █ █ ██ █ █    █ █ ██ █ █
                             ██║     ╚██╗ ██╔╝██║╚██╔╝██║        ██            ██  
                            ╚██████╗ ╚████╔╝ ██║ ╚═╝ ██║        ██            ██ 
-                           ╚═════╝  ╚═══╝  ╚═╝     ╚═╝                    
+                        ╚═════╝  ╚═══╝  ╚═╝     ╚═╝                    
 ```
 
 **A hand-crafted compiler and stack-based virtual machine, written from scratch in C++.**
