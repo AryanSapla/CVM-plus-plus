@@ -9,12 +9,10 @@
 #include "token.h"
 
 // ─── Lexer Error ──────────────────────────────────────────────────────────────
-// Thrown by Lexer::tokenize() for unexpected characters.
-// Format:  [Lexer Error] [Line N]:\nUnexpected character 'X'
 struct LexerError : std::runtime_error {
-    int line;
-    std::string header;   // e.g. "[Lexer Error] [Line 3]"
-    std::string detail;   // e.g. "Unexpected character '@'"
+    int         line;
+    std::string header;
+    std::string detail;
     std::string token;
 
     explicit LexerError(const std::string& detail, int line, std::string token = "")
@@ -40,13 +38,13 @@ private:
     void skipHashComment();
     void skipBlockComment();
 
-    Token number();
+    Token number();       // handles both integers and floats
     Token identifier();
     Token makeToken(TokenType type, const std::string& lexeme) const;
 
     std::string source;
     std::size_t current;
-    int line;
+    int         line;
 };
 
 #endif
