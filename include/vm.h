@@ -35,13 +35,20 @@ struct VMError : std::runtime_error {
           detail(detail) {}
 };
 
+struct ExecutionResult {
+    bool        hasValue = false;
+    bool        printedValue = false;
+    std::string value;
+    ValueType   type = ValueType::Unknown;
+};
+
 class VM {
 public:
-    void execute(const std::vector<Instruction>& instructions);
-    void execute(const std::vector<Instruction>& instructions,
-                 const std::string& source,
-                 std::istream& input,
-                 std::ostream& output);
+    ExecutionResult execute(const std::vector<Instruction>& instructions);
+    ExecutionResult execute(const std::vector<Instruction>& instructions,
+                            const std::string& source,
+                            std::istream& input,
+                            std::ostream& output);
 
 private:
     // A stack value carries both representations so mixed-type ops need no extra conversion.

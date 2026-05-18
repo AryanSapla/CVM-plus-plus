@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "bytecode_io.h"
 #include "compiler.h"
 #include "lexer.h"
 #include "parser.h"
@@ -96,13 +97,22 @@ std::vector<Instruction> compileSource(const std::string& source) {
     return compiler.compile(statements);
 }
 
-std::string executeSource(const std::string& source, const std::string& input = "") {
+struct CapturedExecution {
+    std::string     output;
+    ExecutionResult result;
+};
+
+CapturedExecution runSource(const std::string& source, const std::string& input = "") {
     std::vector<Instruction> bytecode = compileSource(source);
     std::istringstream in(input);
     std::ostringstream out;
     VM vm;
-    vm.execute(bytecode, source, in, out);
-    return out.str();
+    ExecutionResult result = vm.execute(bytecode, source, in, out);
+    return {out.str(), result};
+}
+
+std::string executeSource(const std::string& source, const std::string& input = "") {
+    return runSource(source, input).output;
 }
 
 void testLexerKeywords() {
@@ -152,10 +162,10 @@ void testNegativeNumbers() {
 }
 
 void testPowerOperator() {
-    expect(executeSource("print 2 ^ 3;") == "8\n", "Basic power execution failed.");
-    expect(executeSource("print 2 ^ 3 ^ 2;") == "512\n", "Power should be right-associative.");
-    expect(executeSource("print 2 * 3 ^ 2;") == "18\n", "Power precedence over multiply failed.");
-    expect(executeSource("print -2 ^ 2;") == "-4\n", "Unary minus with power precedence failed.");
+    expect(executeSource("print 2 ^^ 3;") == "8\n", "Basic power execution failed.");
+    expect(executeSource("print 2 ^^ 3 ^^ 2;") == "512\n", "Power should be right-associative.");
+    expect(executeSource("print 2 * 3 ^^ 2;") == "18\n", "Power precedence over multiply failed.");
+    expect(executeSource("print -2 ^^ 2;") == "-4\n", "Unary minus with power precedence failed.");
 }
 
 void testControlFlowAndInput() {
@@ -200,13 +210,53 @@ void testRuntimeFailures() {
         executeSource("let x = input; print x;", "hello\n");
     });
 
-    expectRuntimeError("Integer overflow during multiplication", 1, "2147483648^3", []() {
-        executeSource("print 2147483648 ^ 3;");
+    expectRuntimeError("Integer overflow during multiplication", 1, "2147483648^^3", []() {
+        executeSource("print 2147483648 ^^ 3;");
     });
 
-    expectRuntimeError("Negative exponent is not supported", 1, "2^-1", []() {
-        executeSource("print 2 ^ -1;");
+    expectRuntimeError("Negative exponent not supported for integers", 1, "2^^-1", []() {
+        executeSource("print 2 ^^ -1;");
     });
+}
+
+void testExecutionResult() {
+    CapturedExecution assignment = runSource("int total = 8 + 4;");
+    expect(assignment.output.empty(), "Assignment should not print output.");
+    expect(assignment.result.hasValue, "Assignment should produce a final result.");
+    expect(!assignment.result.printedValue, "Assignment should not be flagged as printed output.");
+    expect(assignment.result.value == "12", "Unexpected final result for assignment.");
+    expect(assignment.result.type == ValueType::Int, "Assignment result type should be int.");
+
+    CapturedExecution expression = runSource("2 + 3;");
+    expect(expression.result.hasValue, "Expression statement should produce a final result.");
+    expect(!expression.result.printedValue, "Expression result should not be flagged as printed output.");
+    expect(expression.result.value == "5", "Unexpected final result for expression statement.");
+
+    CapturedExecution printed = runSource("print 7 * 6;");
+    expect(printed.output == "42\n", "Printed output should remain unchanged.");
+    expect(printed.result.printedValue, "Printed execution should be flagged as printed output.");
+    expect(printed.result.value == "42", "Print should also expose the final VM result.");
+}
+
+void testBytecodeRoundTrip() {
+    std::vector<Instruction> original = compileSource("int value = 5 + 7; print value;");
+    std::string encoded = encodeBytecode(original);
+    std::vector<Instruction> decoded = decodeBytecode(encoded);
+
+    expect(decoded.size() == original.size(), "Decoded bytecode size mismatch.");
+    for (std::size_t i = 0; i < original.size(); ++i) {
+        expect(decoded[i].opcode == original[i].opcode, "Decoded opcode mismatch.");
+        expect(decoded[i].operand == original[i].operand, "Decoded operand mismatch.");
+        expect(decoded[i].line == original[i].line, "Decoded line number mismatch.");
+    }
+
+    std::istringstream in;
+    std::ostringstream out;
+    VM vm;
+    ExecutionResult result = vm.execute(decoded, "", in, out);
+    expect(out.str() == "12\n", "Decoded bytecode should execute correctly.");
+    expect(result.printedValue, "Decoded bytecode should retain print tracking.");
+    expect(result.value == "12", "Decoded bytecode should keep the final result.");
 }
 
 void testSemanticFailures() {
@@ -272,6 +322,8 @@ int main() {
         testPowerOperator();
         testControlFlowAndInput();
         testRuntimeFailures();
+        testExecutionResult();
+        testBytecodeRoundTrip();
         testSemanticFailures();
         testLexerAndParseFailures();
     } catch (const std::exception& error) {

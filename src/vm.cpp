@@ -158,30 +158,57 @@ std::string formatFloat(double v) {
     return oss.str();
 }
 
+std::string formatValue(long long ival, double fval, ValueType type) {
+    return (type == ValueType::Float) ? formatFloat(fval) : std::to_string(ival);
+}
+
+ExecutionResult makeExecutionResult(long long ival, double fval, ValueType type) {
+    ExecutionResult result;
+    result.hasValue = true;
+    result.value = formatValue(ival, fval, type);
+    result.type = type;
+    return result;
+}
+
 } // namespace
 
 // ─── VM ───────────────────────────────────────────────────────────────────────
 
-void VM::execute(const std::vector<Instruction>& instructions) {
-    execute(instructions, "", std::cin, std::cout);
+ExecutionResult VM::execute(const std::vector<Instruction>& instructions) {
+    return execute(instructions, "", std::cin, std::cout);
 }
 
-void VM::execute(const std::vector<Instruction>& instructions,
-                 const std::string& /*source*/,
-                 std::istream& input,
-                 std::ostream& output) {
+ExecutionResult VM::execute(const std::vector<Instruction>& instructions,
+                            const std::string& /*source*/,
+                            std::istream& input,
+                            std::ostream& output) {
 
     stack.clear();
     scopes.clear();
     scopes.push_back(VarMap{});  // global scope
 
     std::size_t ip = 0;
+    ExecutionResult lastResult;
+    bool sawPrint = false;
 
     // ── Helper lambdas ────────────────────────────────────────────────────────
 
     auto runtimeErr = [&](const std::string& msg,
                           const std::string& tok = "") -> RuntimeError {
         return RuntimeError(msg, instructions[ip].line, tok);
+    };
+
+    auto captureValue = [&](long long ival, double fval, ValueType type) {
+        lastResult = makeExecutionResult(ival, fval, type);
+        lastResult.printedValue = sawPrint;
+    };
+
+    auto captureTypedValue = [&](const TypedValue& value) {
+        captureValue(value.ival, value.fval, value.type);
+    };
+
+    auto captureVariableValue = [&](const VariableValue& value) {
+        captureValue(value.ival, value.fval, value.type);
     };
 
     // Search scope stack from inner to outer, return pointer or nullptr.
@@ -213,6 +240,7 @@ void VM::execute(const std::vector<Instruction>& instructions,
             var.fval = static_cast<double>(var.ival);
         }
         scopes.back()[name] = var;
+        captureVariableValue(var);
     };
 
     // Assign to an existing variable (search all scopes, update in place).
@@ -235,6 +263,7 @@ void VM::execute(const std::vector<Instruction>& instructions,
             var->ival = ensureRange(raw, targetType, rangeMsg(raw, targetType));
             var->fval = static_cast<double>(var->ival);
         }
+        captureVariableValue(*var);
     };
 
     auto arithmeticTok = [](long long l, const std::string& op, long long r) {
@@ -559,6 +588,8 @@ void VM::execute(const std::vector<Instruction>& instructions,
                 } else {
                     output << v.ival << '\n';
                 }
+                sawPrint = true;
+                captureTypedValue(v);
                 break;
             }
 
@@ -571,8 +602,16 @@ void VM::execute(const std::vector<Instruction>& instructions,
                 if (scopes.size() > 1) scopes.pop_back();
                 break;
 
-            case OpCode::Pop:  pop(); break;
-            case OpCode::Halt: return;
+            case OpCode::Pop: {
+                TypedValue v = pop();
+                captureTypedValue(v);
+                break;
+            }
+
+            case OpCode::Halt:
+                if (!lastResult.hasValue && !stack.empty())
+                    captureTypedValue(stack.back());
+                return lastResult;
 
             default:
                 throw VMError("Unknown opcode: " +
@@ -581,6 +620,10 @@ void VM::execute(const std::vector<Instruction>& instructions,
 
         ip++;
     }
+
+    if (!lastResult.hasValue && !stack.empty())
+        captureTypedValue(stack.back());
+    return lastResult;
 }
 
 void VM::push(long long value, ValueType type) {

@@ -1,0 +1,7 @@
+# Simple calculator demo
+int left = 12;
+int right = 8;
+int total = (left + right) * 3;
+
+print total;
+print total - 10;
