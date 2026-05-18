@@ -114,27 +114,33 @@ Errors are categorised into: `Lexer`, `Parse`, `Semantic`, `Runtime`, and `VM`.
 
 ```
 CVM++/
+├── README.md            # Project overview, commands, and examples
+├── CMakeLists.txt       # Build configuration
+│
 ├── include/
-│   ├── lexer.h          # Token types and Lexer interface
-│   ├── parser.h         # AST node types and Parser interface
 │   ├── ast.h            # Full AST node definitions
+│   ├── bytecode_io.h    # Bytecode file encode/decode helpers
 │   ├── compiler.h       # Bytecode Compiler interface
+│   ├── lexer.h          # Token types and Lexer interface
 │   ├── opcode.h         # Opcodes, ValueType, Instruction struct
+│   ├── parser.h         # AST node types and Parser interface
 │   ├── token.h          # TokenType enum and Token struct
 │   └── vm.h             # Virtual Machine interface
 │
 ├── src/
-│   ├── lexer.cpp        # Tokeniser
-│   ├── parser.cpp       # Recursive-descent parser + semantic checks
+│   ├── bytecode_io.cpp  # .bc file reader/writer and bytecode formatting
 │   ├── compiler.cpp     # AST → bytecode compiler
-│   ├── vm.cpp           # Stack-based bytecode interpreter
-│   └── main.cpp         # Entry point, error pretty-printer
+│   ├── lexer.cpp        # Tokeniser
+│   ├── main.cpp         # CLI entry point: run, debug, compile, VM execute
+│   ├── parser.cpp       # Recursive-descent parser + semantic checks
+│   └── vm.cpp           # Stack-based bytecode interpreter
 │
 ├── examples/            # Sample .cvm programs
 ├── tests/               # Pipeline and runtime tests
-├── build/               # Generated build output
-└── CMakeLists.txt
+└── build/               # Generated build output
 ```
+
+Bytecode files (`*.bc`) are generated alongside the source `.cvm` file when you use `--compile`.
 
 ---
 
